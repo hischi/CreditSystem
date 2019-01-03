@@ -12,9 +12,12 @@ uint8_t len;
 void setup() {
   // put your setup code here, to run once:
   err_init();
+
   setLogLevel(LM_PN532, LL_INFO);
   setLogLevel(LM_DESFIRE, LL_INFO);
   setLogLevel(LM_DESKEY, LL_INFO);
+  setLogLevel(LM_MDB, LL_INFO);
+  setLogLevel(LL_INFO);
   delay(5000);
 
   log(LL_INFO, LM_MAIN, "**************************************");
@@ -48,7 +51,7 @@ uint8_t tennisCardIDRead[8];
 uint8_t tennisCustomerIDRead[8];
 
 void loop() {
-  log(LL_DEBUG, LM_MAIN, "Loop Cycle");
+  //log(LL_DEBUG, LM_MAIN, "Loop Cycle");
 
   //len = mdb_read(&cmd, data);
   //if(len > 0)
@@ -56,25 +59,31 @@ void loop() {
   //else
   //  log(LL_DEBUG, LM_MAIN, "Received No Data");
 
-  if(rfid_card_present()) {
-    log(LL_DEBUG, LM_MAIN, "Card present");
+ // if(rfid_card_present()) {
+ //   log(LL_DEBUG, LM_MAIN, "Card present");
     //rfid_set_PICC();
     //rfid_restore_card();
 
     //if(rfid_store_tennis_app(tennisCardID, tennisCustomerID)){
     //  log(LL_DEBUG, LM_MAIN, "Tennis data stored");
-      if(rfid_read_tennis_app(tennisCardIDRead, tennisCustomerIDRead)){
-        log(LL_DEBUG, LM_MAIN, "Tennis data found:");
-        log_hexdump(LL_DEBUG, LM_MAIN, "Tennis-Card-ID:    ", 8, tennisCardIDRead);
-        log_hexdump(LL_DEBUG, LM_MAIN, "Tennis-Customer-ID:", 8, tennisCustomerIDRead);
-      } else 
-        log(LL_DEBUG, LM_MAIN, "No tennis data found");
+ //     if(rfid_read_tennis_app(tennisCardIDRead, tennisCustomerIDRead)){
+ //       log(LL_DEBUG, LM_MAIN, "Tennis data found:");
+ //       log_hexdump(LL_DEBUG, LM_MAIN, "Tennis-Card-ID:    ", 8, tennisCardIDRead);
+ //       log_hexdump(LL_DEBUG, LM_MAIN, "Tennis-Customer-ID:", 8, tennisCustomerIDRead);
+ //     } else 
+ //       log(LL_DEBUG, LM_MAIN, "No tennis data found");
     //} else
     //  log(LL_DEBUG, LM_MAIN, "No tennis data stored");
-  }
-  else
-    log(LL_DEBUG, LM_MAIN, "Card not present");
-  rfid_low_power_mode();
+ // }
+ // else
+  //  log(LL_DEBUG, LM_MAIN, "Card not present");
+  //rfid_low_power_mode();
 
-  delay(5000);
+  len = mdb_read(&cmd, data);
+  if(len > 0)
+    cldev_run(cmd, data);
+
+  //mdb_send_ack();
+//Serial.print("Data");
+  delay(1);
 }

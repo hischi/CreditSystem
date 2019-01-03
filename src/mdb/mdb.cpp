@@ -5,6 +5,17 @@
 
 #include <HardwareSerial.h>
 #define SERIAL_9N1 0x84
+#define SERIAL_9E1 0x8E
+#define SERIAL_9O1 0x8F
+#define SERIAL_9N1_RXINV 0x94
+#define SERIAL_9E1_RXINV 0x9E
+#define SERIAL_9O1_RXINV 0x9F
+#define SERIAL_9N1_TXINV 0xA4
+#define SERIAL_9E1_TXINV 0xAE
+#define SERIAL_9O1_TXINV 0xAF
+#define SERIAL_9N1_RXINV_TXINV 0xB4
+#define SERIAL_9E1_RXINV_TXINV 0xBE
+#define SERIAL_9O1_RXINV_TXINV 0xBF
 
 #define PERIPHERAL_ADDR 0x10
 
@@ -20,19 +31,19 @@ uint32_t check_mdb_state() {
         reset_timer.Stop();
         return available;
     } else {
-        log(LL_DEBUG, LM_MDB, "MDB-State: No Bytes available");
+        //log(LL_DEBUG, LM_MDB, "MDB-State: No Bytes available");
         if(digitalRead(MDB_RESET_PIN) == HIGH) {
             log(LL_DEBUG, LM_MDB, "MDB-State: RESET high");
             if(!reset_timer.IsStarted()) {
                 reset_timer.Start(100);
-                log(LL_DEBUG, LM_MDB, "MDB-State: Reset Timer Started");
+                //log(LL_DEBUG, LM_MDB, "MDB-State: Reset Timer Started");
             }
             else if(reset_timer.IsOver()) {
-                log(LL_DEBUG, LM_MDB, "MDB-State: Reset Timer Over. Reinit MDB");
+                //log(LL_DEBUG, LM_MDB, "MDB-State: Reset Timer Over. Reinit MDB");
                 mdb_init();
             } 
         } else {
-            log(LL_DEBUG, LM_MDB, "MDB-State: RESET low");
+            //log(LL_DEBUG, LM_MDB, "MDB-State: RESET low");
             reset_timer.Stop();
         }
         return 0;
@@ -44,14 +55,28 @@ void write(uint8_t data, bool mode) {
     uint16_t data_mode = data;
     if(mode)
         data_mode |= 0x100;
-
+    //Serial.print(data_mode>>8, HEX);
+    //Serial.print(" ");
+    //Serial.println(data&0xFF, HEX);
     Serial1.write9bit(data_mode);
 }
 
 bool read(uint8_t *data) {
     log(LL_DEBUG, LM_MDB, "read");
+    while(Serial1.available() < 1) {
+        log(LL_WARNING, LM_MDB, "Read waits for bytes");
+        delayMicroseconds(100);
+    }
+
     uint16_t data_mode = Serial1.read();
     *data = data_mode & 0xFF;
+    //Serial.print("Daten: ");
+    //Serial.print(*data, HEX);
+    //if((data_mode & 0x100) > 0) {
+    //    Serial.println("   Mode Bit set");
+    //} else {
+    //    Serial.println("   Mode Bit not set");
+    //}
     return ((data_mode & 0x100) > 0);
 }
 
@@ -64,7 +89,7 @@ bool read(uint8_t *data) {
 void mdb_init() {
     log(LL_DEBUG, LM_MDB, "mdb_init");
 
-    Serial1.begin(9600, SERIAL_9N1); 
+    Serial1.begin(9600, SERIAL_9N1_TXINV); 
 
     reset_timer.Stop();
     nack_timer.Stop();
@@ -119,7 +144,7 @@ void mdb_send_nack() {
 }
 
 uint8_t mdb_read(uint8_t *cmd, uint8_t data[]) {
-    log(LL_DEBUG, LM_MDB, "readBlock");
+    //log(LL_DEBUG, LM_MDB, "readBlock");
 
     uint8_t len = 0;
     uint8_t chk = 0;
@@ -158,8 +183,11 @@ uint8_t mdb_read(uint8_t *cmd, uint8_t data[]) {
                 assertDo(mode, LL_ERROR, LM_MDB, "Invalid Block from VCM. Mode-Bit was set unexpectedly in CHK", return 0;);
                 assertDo(chk != chk_read, LL_ERROR, LM_MDB, "Calculated CHK does not match CHK-Byte", return 0;);
 
-                if(len > 0)
+                len++;
+                if(len > 1)
                     log_hexdump(LL_DEBUG, LM_MDB, "Received cmd block data", len, data);
+                else
+                    log_hexdump(LL_DEBUG, LM_MDB, "Received cmd without data", 1, cmd);
             }
         }
     }

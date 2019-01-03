@@ -15,6 +15,7 @@
 #define CMD_POLL    0x12
 #define CMD_VEND    0x13
 #define CMD_READER  0x14
+#define CMD_EXPANSION  0x17
 
 #define SCMD_SETUP_CONFIG   0x00
 #define SCMD_SETUP_PRICES   0x01
@@ -29,6 +30,8 @@
 #define SCMD_READER_DISABLE 0x00
 #define SCMD_READER_ENABLE  0x01
 #define SCMD_READER_CANCEL  0x02
+
+#define SCMD_EXPANSION_ID 0x00
 
 #define ERR_MEDIA_ERROR             0x00
 #define ERR_MEDIA_INVALID           0x10
@@ -177,7 +180,9 @@ void do_cmd_poll() {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_poll");
 
     // TODO
-
+    //uint8_t answer[64];
+    //uint8_t len = answer_DisplayRequest(answer, 100, "Hallo Idiot.");
+    //mdb_send_data(len, answer);
     mdb_send_ack();
 }
 
@@ -255,6 +260,35 @@ void do_cmd_reader_cancel() {
     mdb_send_data(len, answer);
 }
 
+void do_cmd_expansion_id(const uint8_t data[]) {
+    log(LL_DEBUG, LM_CLDEV, "do_cmd_expansion_id");
+
+    char manu_code[4];
+    memcpy(manu_code, data, 3);
+    manu_code[3] = 0;
+
+    char serial_number[13];
+    memcpy(serial_number, data+3, 12);
+    serial_number[13] = 0;
+
+    char model_number[13];
+    memcpy(model_number, data+15, 12);
+    model_number[13] = 0;
+
+    uint16_t sw_version = data[27];
+    sw_version = (sw_version << 8) + data[28];
+
+    log(LL_DEBUG, LM_CLDEV, "Manufacturer Code:", manu_code);
+    log(LL_DEBUG, LM_CLDEV, "Serial Number:    ", serial_number);
+    log(LL_DEBUG, LM_CLDEV, "Model Number:     ", model_number);
+    log_hexdump(LL_DEBUG, LM_CLDEV, "Software Version: ", 2, &data[27]);
+
+    uint8_t answer[32];
+    uint8_t len = 0;
+    len = answer_PeripheralID(answer);
+    mdb_send_data(len, answer);
+}
+
 void do_cmd(uint8_t cmd, const uint8_t data[]) {
     log(LL_DEBUG, LM_CLDEV, "do_cmd");
 
@@ -319,7 +353,17 @@ void do_cmd(uint8_t cmd, const uint8_t data[]) {
                 default:
                     assertRtn(true, LL_ERROR, LM_CLDEV, "Unknown READER-Subcmd");
             }
-            break;       
+            break;    
+
+        case CMD_EXPANSION:
+            switch(data[0]) {
+                case SCMD_EXPANSION_ID:
+                    do_cmd_expansion_id(&data[2]);
+                    break;
+                default:
+                    assertRtn(true, LL_ERROR, LM_CLDEV, "Unknown EXPANSION-Subcmd");
+            }   
+            break;
         default:
             assertRtn(true, LL_ERROR, LM_CLDEV, "Unknown Cmd");
     }
@@ -478,7 +522,11 @@ uint8_t cldev_cmd_len(uint8_t cmd) {
             return 1;
 
         case CMD_READER:
+            return 1;   
+
+        case CMD_EXPANSION:
             return 1;    
+
         default:
             assertCnt(true, LL_ERROR, LM_CLDEV, "Unknown Cmd");
             return 0;
@@ -486,7 +534,7 @@ uint8_t cldev_cmd_len(uint8_t cmd) {
 }
 
 uint8_t cldev_scmd_len(uint8_t cmd, uint8_t scmd) {
-    log(LL_DEBUG, LM_CLDEV, "cldev_cmd_len");
+    log(LL_DEBUG, LM_CLDEV, "cldev_scmd_len");
 
     switch(cmd) {
         case CMD_RESET:
@@ -537,6 +585,16 @@ uint8_t cldev_scmd_len(uint8_t cmd, uint8_t scmd) {
                     assertDo(true, LL_ERROR, LM_CLDEV, "Unknown READER-Subcmd", return 0;);
             }
             break;       
+
+        case CMD_EXPANSION:
+            switch(scmd) {
+                case SCMD_EXPANSION_ID:
+                    return 29;
+                default:
+                    assertDo(true, LL_ERROR, LM_CLDEV, "Unknown EXPANSION-Subcmd", return 0;);
+            }   
+            break;
+
         default:
             assertCnt(true, LL_ERROR, LM_CLDEV, "Unknown Cmd");
             return 0;
