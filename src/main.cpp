@@ -14,7 +14,8 @@ void setup() {
   // put your setup code here, to run once:
   err_init();
 
-  setLogLevel(LL_DEBUG);
+  setLogLevel(LL_INFO);
+  setLogLevel(LM_MAIN, LL_DEBUG);
   setLogLevel(LM_PN532, LL_INFO);
   setLogLevel(LM_DESFIRE, LL_INFO);
   setLogLevel(LM_DESKEY, LL_INFO);
@@ -48,7 +49,7 @@ void setup() {
 }
 
 uint8_t tennisCardID[8] = {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
-uint8_t tennisCustomerID[8] = {0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x07};
+uint8_t tennisCustomerID[8] = {0x01, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x07};
 
 uint8_t tennisCardIDRead[8];
 uint8_t tennisCustomerIDRead[8];
@@ -69,7 +70,8 @@ void loop() {
     
 
     //if(rfid_store_tennis_app(tennisCardID, tennisCustomerID)){
-   //   log(LL_DEBUG, LM_MAIN, "Tennis data stored");
+     // log(LL_DEBUG, LM_MAIN, "Tennis data stored");
+    //}
      if(rfid_read_tennis_app(tennisCardIDRead, tennisCustomerIDRead)){
         log(LL_DEBUG, LM_MAIN, "Tennis data found:");
         log_hexdump(LL_DEBUG, LM_MAIN, "Tennis-Card-ID:    ", 8, tennisCardIDRead);
@@ -89,7 +91,7 @@ void loop() {
         log(LL_DEBUG, LM_MAIN, "Tennis Memb ID", membID);
 
         sMember member;
-        dh_get_member(membID, &member);
+        dh_get_member(10027021, &member);
 
       } else 
         log(LL_DEBUG, LM_MAIN, "No tennis data found");

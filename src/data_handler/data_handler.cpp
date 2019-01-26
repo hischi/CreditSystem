@@ -10,12 +10,13 @@ bool dh_get_member(uint32_t memberID, sMember *member) {
     log(LL_DEBUG, LM_DH, "dh_get_member");
 
     // Open member list on sd card
-    assertDo(!fh_fopen(1, "MITGLIED.CSV"), LL_ERROR, LM_DH, "Can't open list of members <MITGLIED.CSV> on sd card 1", return false;);
+    assertDo(!fh_fopen(2, "MITGLIED.CSV"), LL_ERROR, LM_DH, "Can't open list of members <MITGLIED.CSV> on sd card 1", return false;);
 
     // Find in column 0 the member id
     char memberIDstr[16];
     sprintf(memberIDstr, "%d", memberID);
     int32_t row = csv_findInColumn(0, memberIDstr);
+    log(LL_DEBUG, LM_DH, "Member search returned with: ", (uint32_t) row);
     assertDo(row < 0, LL_ERROR, LM_DH, "Can't find member within member list", return false;);
 
     // Fill data from SD card into member struct
@@ -26,7 +27,7 @@ bool dh_get_member(uint32_t memberID, sMember *member) {
     member->properties = csv_read_uint32(4, row);
     member->discount = csv_read_uint32(5, row);
 
-    for(uint8_t i = 0; i < 4; i) {
+    for(uint8_t i = 0; i < 4; i++) {
         member->cardIDs[member->cardCount] = csv_read_uint32(6 + i, row);
         if(member->cardIDs[member->cardCount] == 0)
             break;
