@@ -42,7 +42,7 @@
                 "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Encoder",
                 "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Encoder/utility",
                 "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Entropy",
-                "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Ethernet/src",
+                "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Ethernet",
                 "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/FastCRC",
                 "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/FastLED",
                 "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/FlexCAN",
@@ -108,8 +108,8 @@
                 "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/ssd1351",
                 "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/x10",
                 "C:/Users/Florian/.platformio/packages/tool-unity",
-                "c:/Users/Florian/Documents/Projects/TeensyCashless/include",
-                "c:/Users/Florian/Documents/Projects/TeensyCashless/src",
+                "c:/Users/Florian/Documents/PlatformIO/Projects/TeensyCashless/include",
+                "c:/Users/Florian/Documents/PlatformIO/Projects/TeensyCashless/src",
                 ""
             ],
             "browse": {
@@ -154,7 +154,7 @@
                     "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Encoder",
                     "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Encoder/utility",
                     "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Entropy",
-                    "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Ethernet/src",
+                    "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/Ethernet",
                     "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/FastCRC",
                     "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/FastLED",
                     "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/FlexCAN",
@@ -220,8 +220,8 @@
                     "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/ssd1351",
                     "C:/Users/Florian/.platformio/packages/framework-arduinoteensy/libraries/x10",
                     "C:/Users/Florian/.platformio/packages/tool-unity",
-                    "c:/Users/Florian/Documents/Projects/TeensyCashless/include",
-                    "c:/Users/Florian/Documents/Projects/TeensyCashless/src",
+                    "c:/Users/Florian/Documents/PlatformIO/Projects/TeensyCashless/include",
+                    "c:/Users/Florian/Documents/PlatformIO/Projects/TeensyCashless/src",
                     ""
                 ]
             },
@@ -231,7 +231,7 @@
                 "TEENSY35",
                 "USB_SERIAL",
                 "ARDUINO=10805",
-                "TEENSYDUINO=145",
+                "TEENSYDUINO=141",
                 "F_CPU=120000000L",
                 "LAYOUT_US_ENGLISH",
                 ""

@@ -249,7 +249,7 @@ int32_t csv_read_string(uint32_t col, uint32_t row, uint32_t maxLength, char str
     return maxLength-1;
 }
 
-void csv_write_string(uint32_t col, uint32_t row, uint32_t length, char str[]) {
+void csv_write_string(uint32_t col, uint32_t row, uint32_t length, const char str[]) {
     log(LL_DEBUG, LM_FH, "csv_write_string");
 
     char buffer[32];
@@ -368,4 +368,65 @@ void csv_write_price(uint32_t col, uint32_t row, const cPrice &price) {
     int32_t length = sprintf(str, "%d,%02hhu", price.GetEuros(), price.GetCents());
     
     csv_write_string(col, row, length, str);
+}
+
+int32_t csv_findInColumn(uint32_t col, const char str[]) {
+    log(LL_DEBUG, LM_FH, "csv_findInColumn");
+
+    assertDo(!file.isFile() || !file.isOpen(), LL_ERROR, LM_FH, "File not valid (isFile && opened)", return -1;);
+    assertDo(!file.seekSet(0), LL_ERROR, LM_FH, "File not seekable", return -1;);
+    assertDo(strlen(str)>31, LL_ERROR, LM_FH, "Input string too long", return -1;);
+
+    char buffer[64];    
+    uint32_t len = 0;
+
+    // Go row by row
+    uint32_t r = 0;
+    uint32_t c = 0;
+    bool afterSeperator = true;
+    while(true) {                           // repeat as long as row wasn't found and 
+        len = file.read(buffer, 64);        // fill the buffer
+        log_hexdump(LL_DEBUG, LM_FH, "Read-Data:", len, (const uint8_t*) buffer);
+
+        if(len == 0)                        // if file end reached stop searching
+        {
+            log(LL_DEBUG, LM_FH, "EoF reached. Nothing found");
+            return -1;                      // we have reached the end of file and have not found anything
+        }
+            
+        for(uint32_t i = 0; i < len; i++) { // check for all chars in the buffer
+            if(buffer[i] == ';') {          // whether it's a seperator character
+                c++;                        // then increase the column counter
+                afterSeperator = true;
+            } else if(buffer[i] == '\n') {  // we reached the end of the line/row and have to add more columns
+                log(LL_DEBUG, LM_FH, "New line. Increase row");
+                r++;
+                c = 0;
+                afterSeperator = true;
+            }
+
+            if(afterSeperator && c == col) {              // if we found the wanted column
+                log(LL_DEBUG, LM_FH, "In wanted column");
+                file.seekCur(i-len+1);  // correct seek pointer after the seperator character
+                len = file.read(buffer, 64);
+
+                log_hexdump(LL_DEBUG, LM_FH, "Compare:", len, (const uint8_t*) buffer);
+                log_hexdump(LL_DEBUG, LM_FH, "With:   ", strlen(str), (const uint8_t*) str);
+                bool equal = true;
+                for(uint32_t k = 0; k < len; k++) {
+                    if(str[k] == 0) {
+                        if(buffer[k] != ';')
+                            equal = false;
+                        break;
+                    } else if(buffer[k] == ';' || buffer[k] != str[k]) {
+                        equal = false;
+                        break;
+                    }
+                }
+                if(equal) 
+                    return r;          
+            }
+            afterSeperator = false;
+        }
+    }       
 }

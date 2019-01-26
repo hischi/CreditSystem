@@ -114,7 +114,7 @@ void log_header(eLogLevel level, const char module[]) {
     }
 
     // Format and write Module
-    snprintf(str, 10, "%-10s ", module);
+    snprintf(str, 11, "%-10s ", module);
     Serial.write(str);
 }
 
