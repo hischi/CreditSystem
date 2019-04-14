@@ -14,12 +14,13 @@ void setup() {
   // put your setup code here, to run once:
   err_init();
 
-  setLogLevel(LL_INFO);
+  setLogLevel(LL_DEBUG);
   setLogLevel(LM_MAIN, LL_DEBUG);
   setLogLevel(LM_PN532, LL_INFO);
   setLogLevel(LM_DESFIRE, LL_INFO);
   setLogLevel(LM_DESKEY, LL_INFO);
   setLogLevel(LM_MDB, LL_INFO);
+  setLogLevel(LM_CS, LL_INFO);
   
   delay(5000);
 
@@ -54,6 +55,8 @@ uint8_t tennisCustomerID[8] = {0x01, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x07};
 uint8_t tennisCardIDRead[8];
 uint8_t tennisCustomerIDRead[8];
 
+uint32_t transid = 0;
+
 void loop() {
   //log(LL_DEBUG, LM_MAIN, "Loop Cycle");
 
@@ -65,12 +68,12 @@ void loop() {
 
   if(rfid_card_present()) {
     log(LL_DEBUG, LM_MAIN, "Card present");
-    rfid_set_PICC();
+    //rfid_set_PICC();
     //rfid_restore_card();
     
 
     //if(rfid_store_tennis_app(tennisCardID, tennisCustomerID)){
-     // log(LL_DEBUG, LM_MAIN, "Tennis data stored");
+    //  log(LL_DEBUG, LM_MAIN, "Tennis data stored");
     //}
      if(rfid_read_tennis_app(tennisCardIDRead, tennisCustomerIDRead)){
         log(LL_DEBUG, LM_MAIN, "Tennis data found:");
@@ -91,7 +94,17 @@ void loop() {
         log(LL_DEBUG, LM_MAIN, "Tennis Memb ID", membID);
 
         sMember member;
-        dh_get_member(10027021, &member);
+        //dh_get_member(10027021, &member);
+        if(dh_is_authorised(membID, cardID)) {
+          log(LL_INFO, LM_MAIN, "Member was authorised by card");
+          dh_create_transaction(membID, 2, 150, 3);
+          dh_approve_transaction();
+          dh_complete_transaction();
+
+        }
+        else
+          assertCnt(true, LL_WARNING, LM_MAIN, "Member can't be authorised with card");
+        
 
       } else 
         log(LL_DEBUG, LM_MAIN, "No tennis data found");

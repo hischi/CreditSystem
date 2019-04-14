@@ -1,6 +1,12 @@
 {
-    "!!! WARNING !!!": "PLEASE DO NOT MODIFY THIS FILE! USE https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags",
     "configurations": [
+        {
+            "name": "!!! WARNING !!! AUTO-GENERATED FILE, PLEASE DO NOT MODIFY IT AND USE https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags",
+            "intelliSenseMode": "msvc-x64",
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.16.27023/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17"
+        },
         {
             "name": "Win32",
             "includePath": [
@@ -226,7 +232,7 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=30604",
+                "PLATFORMIO=30606",
                 "__MK64FX512__",
                 "TEENSY35",
                 "USB_SERIAL",

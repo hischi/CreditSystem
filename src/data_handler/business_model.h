@@ -1,27 +1,95 @@
 #pragma once
 
+#ifdef WIN32
+#include <stdint.h>
+#else
 #include <Arduino.h>
+#endif
 
-class cAccount {
+#include "../util/checksum.h"
 
-public:
-bool LoadFromSD(uint8_t sdCard);
+#define DB_VERSION "0.1"
 
-uint32_t m_ID;
-};
+/*********************************************
+ * Member Properties
+ ********************************************/
+#define DH_MEMBERPROP_NOT_ITEM0 0x0001
+#define DH_MEMBERPROP_NOT_ITEM1 0x0002
+#define DH_MEMBERPROP_NOT_ITEM2 0x0004
+#define DH_MEMBERPROP_NOT_ITEM3 0x0008
+#define DH_MEMBERPROP_NOT_ITEM4 0x0010
+#define DH_MEMBERPROP_NOT_ITEM5 0x0020
+#define DH_MEMBERPROP_NOT_ITEM6 0x0040
+#define DH_MEMBERPROP_NOT_ITEM7 0x0080
 
-class cMember {
+#define DH_MEMBERPROP_CLUBCARD  0x0100
+#define DH_MEMBERPROP_TEAMCARD  0x0200
+//********************************************
 
-public:
-bool LoadFromSD(uint8_t sdCard);
+/*********************************************
+ * Transaction status
+ ********************************************/
+#define DH_TA_CREATED   0x00
+#define DH_TA_APPROVED  0x01
+#define DH_TA_COMPLETED 0x02
+#define DH_TA_CANCLED   0x10
+#define DH_TA_TIMEOUT   0x20
+#define DH_TA_CORRUPTED 0x80
+//********************************************
 
-uint32_t m_ID;
-char m_Surname[128];
-char m_Name[128];
-cAccount m_Account;
-uint8_t m_Limits[16];
-uint8_t m_LimitsCount;
-uint8_t m_Discount;
-uint32_t m_CardIDs[4];
-uint32_t m_CardCount;
-};
+
+#pragma pack(push, 1)
+struct sDataBaseHeader {
+    uint32_t    version;                    // Version of the Data-Base
+    uint32_t    datetime_modified;          // Date and Time of the last Data-Base Change
+    char        author[16];                 // Name of the last author
+    uint32_t    entry_count;                // Number of entries which directly follow this header
+}; // 28 Bytes
+#pragma pack (pop)
+
+#pragma pack(push, 1)
+struct sMember {
+    uint32_t    id;                         // unique id of that member
+    char        name[16];                   // surname
+    char        given_name[16];             // given name
+    uint16_t    properties;                 // properties, see Member Properties above
+    uint16_t    discount;                   // Discount in %
+    uint32_t    card_id;                    // card id which is linked to that member
+}; // 44 Bytes
+#pragma pack (pop)
+
+#pragma pack(push, 1)
+struct sTransactionHeader {
+    uint32_t    version;                    // Version of the SW which generated the transaction list
+    uint32_t    datetime_modified;          // Date and Time of the last change
+    uint32_t    entry_count;                // Number of entries which follow this header
+}; // 12 Bytes
+#pragma pack (pop)
+
+#pragma pack(push, 1)
+struct sTransactionHeaderCS {
+    sTransactionHeader  header;             // Transaction Header
+    uint32_t            checksum;           // Header checksum
+}; // 16 Bytes
+#pragma pack (pop)
+
+#pragma pack(push, 1)
+struct sTransaction {
+    uint32_t    id;                         // unique ID of this transaction
+    uint32_t    datetime_modified;          // Date and Time of the transaction
+    uint32_t    member_id;                  // who was the customer
+    uint8_t     status;                     // status of this transaction (see eTransactionStatus)
+    uint8_t     item_id;                    // which item was selected
+    uint32_t    cost;                       // cost of the item in cents
+    uint16_t    discount;                   // discount which was granted and is already included in cost
+}; // 20 Bytes
+#pragma pack (pop)
+
+#pragma pack(push, 1)
+struct sTransactionCS {
+    sTransaction    transaction;            // Transaction
+    uint32_t        checksum;               // Transaction checksum
+}; // 24 Bytes
+#pragma pack (pop)
+
+

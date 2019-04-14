@@ -78,7 +78,7 @@ bool traversePath(const char path[]) {
         log(LL_DEBUG, LM_FH, "Open file");
         log(LL_DEBUG, LM_FH, path);
 
-        assertDo(!next_file.open(&file, path, O_RDWR), LL_ERROR, LM_FH, "Can't open next file", return false;);
+        assertDo(!next_file.open(&file, path, O_RDWR | O_CREAT), LL_ERROR, LM_FH, "Can't open next file", return false;);
         assertDo(!file.close(), LL_ERROR, LM_FH, "Can't close dir file", return false;);
 
         file = next_file;
@@ -109,6 +109,61 @@ void fh_fclose() {
     file.close();
 }
 
+bool fh_fs_ready(uint8_t card) {
+    log(LL_DEBUG, LM_FH, "fh_fs_ready");
+
+    if(card == 1) 
+        return fs1_ready;
+    if(card == 2)
+        return fs2_ready;
+    return false;
+}
+
+int32_t fh_fread(uint32_t pos, uint16_t len, uint8_t *buf) {
+    log(LL_DEBUG, LM_FH, "fh_fread");
+
+    assertDo(!file.isFile() || !file.isOpen(), LL_ERROR, LM_FH, "File not valid (isFile && opened)", return -1;);               // file must be valid
+
+    assertDo(file.seekSet(pos) == 0, LL_ERROR, LM_FH, "Can't set file seek", return -1;);
+
+    return file.read(buf, len);
+}
+
+int32_t fh_fwrite(uint32_t pos, uint16_t len, uint8_t *buf) {
+    log(LL_DEBUG, LM_FH, "fh_fwrite");
+
+    assertDo(!file.isFile() || !file.isOpen(), LL_ERROR, LM_FH, "File not valid (isFile && opened)", return -1;);               // file must be valid
+
+    assertDo(file.seekSet(pos) == 0, LL_ERROR, LM_FH, "Can't set file seek", return -1;);
+
+    int write_len = file.write(buf, len);
+    assertDo(write_len < 0, LL_ERROR, LM_FH, "Can't write to file", return -1;);
+
+    assertDo(file.sync() == 0, LL_ERROR, LM_FH, "Can't sync data to sd card", return -1;);
+
+    return write_len;
+}
+
+int32_t fh_fappend(uint16_t len, uint8_t *buf) {
+    log(LL_DEBUG, LM_FH, "fh_fappend");
+    return fh_fwrite(file.fileSize(), len, buf);    
+}
+
+int32_t fh_flen() {
+    log(LL_DEBUG, LM_FH, "fh_flen");
+    
+    return file.fileSize();
+}
+
+void fh_flog(uint32_t pos) {
+    uint8_t buf[256];
+    assertRtn(!fh_fread(pos, 256, buf), LL_ERROR, LM_FH, "Can't read from file");
+    log(LL_DEBUG, LM_FH, "File-Seek-At:", pos);
+    log(LL_DEBUG, LM_FH, "File-Len    :", file.fileSize());
+    log_hexdump(LL_DEBUG, LM_FH, "File-Content:", 256, buf);
+}
+
+/*
 void insert(const char insert_buffer[], uint32_t insert_len) {
     log(LL_DEBUG, LM_FH, "insert");
 
@@ -155,282 +210,4 @@ void insert(const char insert_buffer[], uint32_t insert_len) {
     file.sync();
     log(LL_DEBUG, LM_FH, "Insert done");
 }
-
-bool csv_locate_cell(uint32_t col, uint32_t row) {
-    log(LL_DEBUG, LM_FH, "csv_locate_cell");
-
-    assertDo(!file.isFile() || !file.isOpen(), LL_ERROR, LM_FH, "File not valid (isFile && opened)", return false;);
-    assertDo(!file.seekSet(0), LL_ERROR, LM_FH, "File not seekable", return false;);
-
-    char buffer[64];    
-    uint32_t len = 0;
-
-    // Goto the wanted row
-    uint32_t r = 0;
-    while(r < row) {                        // repeat as long as row wasn't found and 
-        len = file.read(buffer, 64);        // fill the buffer
-        if(len == 0)                        // if file end reached stop searching
-            break;
-
-        for(uint32_t i = 0; i < len; i++) { // check for all chars in the buffer
-            if(buffer[i] == '\n') {         // whether it's a newline character
-                r++;                        // then increase the row counter
-                if(r == row) {              // if we found the wanted row
-                    file.seekCur(i-len+1);  // correct seek pointer to be after the newline character
-                    break;                  // and break from intra-buffer search
-                }
-            }
-        }
-    }            
-
-    while(r < row) {
-        file.write('\n');                  // add rows if not enough rows in the file
-        r++;
-    }
-    file.sync();
-
-    log(LL_DEBUG, LM_FH, "Row found");
-
-    // Goto the wanted column, we can assume that the file seek pointer is set to the first char in the row/line
-    uint32_t c = 0;
-    while(c < col) {                        // repeat as long as column wasn't found or added
-        len = file.read(buffer, 64);        // fill the buffer
-
-        if(len == 0)
-            break;
-
-        for(uint32_t i = 0; i < len; i++) { // check for all chars in the buffer
-            if(buffer[i] == ';') {          // whether it's a seperator character
-                c++;                        // then increase the column counter
-                if(c == col) {              // if we found the wanted column
-                    file.seekCur(i-len+1);  // correct seek pointer after the seperator character
-                    log(LL_DEBUG, LM_FH, "Column found");
-                    return true;            // and return
-                }
-            } else if(buffer[i] == '\r' || buffer[i] == '\n') {  // we reached the end of the line/row and have to add more columns
-                file.seekCur(i-len);        // correct seek pointer to be before the newline character
-                goto fill_columns;
-            }
-        }
-    }            
-
-fill_columns:
-    log(LL_DEBUG, LM_FH, "Have to add cols");
-    char* moreCols = new char[col-c];
-    for(uint32_t j = 0; j < (col-c); j++)
-        moreCols[j] = ';';
-    insert(moreCols, col-c); // Insert further seperator characters
-    delete(moreCols);
-    log(LL_DEBUG, LM_FH, "Missing Columns added");
-    return true;    
-}
-
-int32_t csv_read_string(uint32_t col, uint32_t row, uint32_t maxLength, char str[]) {
-    log(LL_DEBUG, LM_FH, "csv_read_string");
-
-    assertDo(!csv_locate_cell(col, row), LL_ERROR, LM_FH, "Can't locate cell.", return -1;);
-
-    int32_t length = 0;
-    
-    assertDo((length = file.read(str, maxLength-1)) <= 0, LL_WARNING, LM_FH, "File seems empty", return -1;);
-
-    str[length-1] = 0;
-    for(int32_t i = 0; i < length; i++) {
-        if(str[i] == ';' || str[i] == '\r' || str[i] == '\n') {
-            str[i] = 0;
-            length = i;
-            break;
-        }
-    }
-
-    log(LL_DEBUG, LM_FH, "Read string at col:", col);
-    log(LL_DEBUG, LM_FH, "Read string at row:", row);
-    log(LL_DEBUG, LM_FH, "Read string:", str);
-    log(LL_DEBUG, LM_FH, "String len:", (uint32_t) length);
-    return length;
-}
-
-void csv_write_string(uint32_t col, uint32_t row, uint32_t length, const char str[]) {
-    log(LL_DEBUG, LM_FH, "csv_write_string");
-
-    char buffer[32];
-    uint32_t len = 0;
-    uint32_t previousLen = 0;
-    bool endFound = false;
-
-    assertRtn(!csv_locate_cell(col, row), LL_ERROR, LM_FH, "Can't locate cell.");
-    uint32_t startSeek = file.curPosition();
-
-    do {
-        len = file.read(buffer, 32);
-        for(uint32_t i = 0; i < len; i++, previousLen++) {
-            if(buffer[i] == ';' || buffer[i] == '\r' || buffer[i] == '\n') {
-                endFound = true;
-                break;
-            }
-        }
-    } while(!endFound && len > 0);
-
-    file.seekSet(startSeek);
-    if(previousLen >= length)
-    {
-        file.write(str, length);
-        for(;length < previousLen; length++)
-            file.write(" ");
-    } else {
-        file.write(str, previousLen);
-        insert(str+previousLen, length-previousLen);
-    }
-    file.sync();
-    log(LL_DEBUG, LM_FH, "String was written to file");
-}
-
-uint32_t csv_read_uint32(uint32_t col, uint32_t row) {
-    log(LL_DEBUG, LM_FH, "csv_read_uint32");
-    uint32_t value = 0;
-    char buf[16];
-
-    if(csv_read_string(col, row, 16, buf) > 0) {
-        value = atoi(buf);
-        log(LL_DEBUG, LM_FH, "Read numeric value:", value);
-    }
-    else
-        assertCnt(true, LL_WARNING, LM_FH, "Cell did not contain a numeric value");
-
-    return value;
-}
-
-void csv_write_uint32(uint32_t col, uint32_t row, uint32_t value) {
-    log(LL_DEBUG, LM_FH, "csv_write_uint32");
-
-    char str[16];
-    int32_t length = sprintf(str, "%lu", value);
-    
-    csv_write_string(col, row, length, str);
-}
-
-float csv_read_float32(uint32_t col, uint32_t row) {
-    log(LL_DEBUG, LM_FH, "csv_read_float32");
-
-    float value = 0.0;
-    char *komma = 0;
-    char buf[32];
-
-    if(csv_read_string(col, row, 32, buf) > 0) {
-        if((komma = strchr(buf, ',')) > 0)
-            *komma = '.';
-        value = (float) atof(buf);
-    } else {
-        assertDo(true, LL_WARNING, LM_FH, "Can't read cell", return NAN;);
-    }        
-
-    log(LL_DEBUG, LM_FH, "Read float value:", value);
-    return value;
-}
-
-void csv_write_float32(uint32_t col, uint32_t row, float value) {
-    log(LL_DEBUG, LM_FH, "csv_write_float32");
-
-    char str[32];
-    int32_t length = sprintf(str, "%f", (double) value);
-    
-    csv_write_string(col, row, length, str);
-}
-
-cPrice csv_read_price(uint32_t col, uint32_t row) {
-    log(LL_DEBUG, LM_FH, "csv_read_price");
-
-    cPrice price;
-    int32_t euros = 0;
-    uint8_t cents = 0;
-    char *komma = 0;
-    char buf[32];
-
-    if(csv_read_string(col, row, 32, buf) > 0) {
-        if((komma = strchr(buf, ',')) > 0) {
-            cents = atoi(komma+1);
-        }
-        euros = atoi(buf);
-    } else {
-        assertDo(true, LL_WARNING, LM_FH, "Can't read cell", price.SetValid(false); return price;);
-    }        
-
-    assertDo(cents > 99, LL_ERROR, LM_FH, "Invalid cent format. More than 99 cents", price.SetValid(false); return price;);
-    price.Set(euros < 0, euros, cents);
-
-    log(LL_DEBUG, LM_FH, "Read price:", price);
-    return price;
-}
-
-void csv_write_price(uint32_t col, uint32_t row, const cPrice &price) {
-    log(LL_DEBUG, LM_FH, "csv_write_price");
-
-    char str[32];
-    int32_t length = sprintf(str, "%d,%02hhu", price.GetEuros(), price.GetCents());
-    
-    csv_write_string(col, row, length, str);
-}
-
-int32_t csv_findInColumn(uint32_t col, const char str[]) {
-    log(LL_DEBUG, LM_FH, "csv_findInColumn");
-
-    assertDo(!file.isFile() || !file.isOpen(), LL_ERROR, LM_FH, "File not valid (isFile && opened)", return -1;);
-    assertDo(!file.seekSet(0), LL_ERROR, LM_FH, "File not seekable", return -1;);
-    assertDo(strlen(str)>31, LL_ERROR, LM_FH, "Input string too long", return -1;);
-
-    char buffer[64];    
-    uint32_t len = 0;
-
-    // Go row by row
-    uint32_t r = 0;
-    uint32_t c = 0;
-    bool afterSeperator = true;
-    while(true) {                           // repeat as long as row wasn't found and 
-        len = file.read(buffer, 64);        // fill the buffer
-        log_hexdump(LL_DEBUG, LM_FH, "Read-Data:", len, (const uint8_t*) buffer);
-
-        if(len == 0)                        // if file end reached stop searching
-        {
-            log(LL_DEBUG, LM_FH, "EoF reached. Nothing found");
-            return -1;                      // we have reached the end of file and have not found anything
-        }
-            
-        for(uint32_t i = 0; i < len; i++) { // check for all chars in the buffer
-            if(buffer[i] == ';') {          // whether it's a seperator character
-                c++;                        // then increase the column counter
-                afterSeperator = true;
-                i++;
-            } else if(buffer[i] == '\n') {  // we reached the end of the line/row and have to add more columns
-                log(LL_DEBUG, LM_FH, "New line. Increase row");
-                r++;
-                c = 0;
-                afterSeperator = true;
-                i++;
-            }
-
-            if(afterSeperator && c == col) {              // if we found the wanted column
-                log(LL_DEBUG, LM_FH, "In wanted column");
-                file.seekCur(i-len);  // correct seek pointer after the seperator character
-                len = file.read(buffer, 64);
-                i = 0;
-
-                log_hexdump(LL_DEBUG, LM_FH, "Compare:", len, (const uint8_t*) buffer);
-                log_hexdump(LL_DEBUG, LM_FH, "With:   ", strlen(str), (const uint8_t*) str);
-                bool equal = true;
-                for(uint32_t k = 0; k < len; k++) {
-                    if(str[k] == 0) {
-                        if(buffer[k] != ';')
-                            equal = false;
-                        break;
-                    } else if(buffer[k] == ';' || buffer[k] != str[k]) {
-                        equal = false;
-                        break;
-                    }
-                }
-                if(equal) 
-                    return r;          
-            }
-            afterSeperator = false;
-        }
-    }       
-}
+*/

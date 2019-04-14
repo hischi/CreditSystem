@@ -36,6 +36,8 @@ const char* getModuleName(eLogModule module) {
             return "DataHandl";
         case LM_BM:
             return "BusiModel";
+        case LM_CS:
+            return "CheckSum";
         default:
             return "UNKNOWN"; 
     }
@@ -291,6 +293,25 @@ void log(eLogLevel level, eLogModule module, const char msg[], const cPrice &pri
         Serial.write(",");
         Serial.print(price.GetCents());
         Serial.write(" EUR\n");
+        Serial.flush();
+    }
+}
+
+void log(eLogLevel level, eLogModule module, const char msg[], const DateTime &datetime) {
+        // Check args
+    assertRtn(level > LL_VERBOSE, LL_WARNING, "InvalidLL", getModuleName(module));
+
+    if(level <= logLevel[module]) {// only write if log level is ok
+        log_header(level, getModuleName(module));
+        // Write Msg
+        Serial.write(msg);
+        Serial.print(" ");
+
+        // Write value
+        char datetime_str[20];
+        sprintf(datetime_str, "%02hu.%02hu.%04u %02hu:%02hu:%02hu", datetime.day(), datetime.month(), datetime.year(), datetime.hour(), datetime.minute(), datetime.second());
+        Serial.write(datetime_str);
+        Serial.write("\n");
         Serial.flush();
     }
 }

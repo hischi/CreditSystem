@@ -8,16 +8,12 @@ void fh_init();
 bool fh_fopen(uint8_t card, const char path[]);
 void fh_fclose();
 
-int32_t csv_read_string(uint32_t col, uint32_t row, uint32_t maxLength, char str[]);
-void csv_write_string(uint32_t col, uint32_t row, uint32_t length, const char str[]);
+bool fh_fs_ready(uint8_t card);
 
-uint32_t csv_read_uint32(uint32_t col, uint32_t row);
-void csv_write_uint32(uint32_t col, uint32_t row, uint32_t value);
+int32_t fh_fread(uint32_t pos, uint16_t len, uint8_t *buf);
+int32_t fh_fwrite(uint32_t pos, uint16_t len, uint8_t *buf);
+int32_t fh_fappend(uint16_t len, uint8_t *buf);
 
-float csv_read_float32(uint32_t col, uint32_t row);
-void csv_write_float32(uint32_t col, uint32_t row, float value);
+int32_t fh_flen();
 
-cPrice csv_read_price(uint32_t col, uint32_t row);
-void csv_write_price(uint32_t col, uint32_t row, const cPrice &price);
-
-int32_t csv_findInColumn(uint32_t col, const char str[]);
+void fh_flog(uint32_t pos);

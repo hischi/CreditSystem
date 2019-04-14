@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include "price.h"
+#include "time_format.h"
 
 class cPrice;
 
@@ -32,7 +33,8 @@ enum eLogModule {
     LM_PN532 = 10,
     LM_RFID = 11,
     LM_DH = 12,
-    LM_BM = 13
+    LM_BM = 13,
+    LM_CS = 14
 };
 
 void setLogLevel(eLogLevel level);
@@ -58,4 +60,5 @@ void log(eLogLevel level, eLogModule module, const char msg[], uint32_t value);
 void log(eLogLevel level, eLogModule module, const char msg[], float value);
 void log(eLogLevel level, eLogModule module, const char msg[], const char str[]);
 void log(eLogLevel level, eLogModule module, const char msg[], const cPrice &price);
+void log(eLogLevel level, eLogModule module, const char msg[], const DateTime &datetime);
 void log_hexdump(eLogLevel level, eLogModule module, const char msg[], uint16_t len, const uint8_t data[]);
