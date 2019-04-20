@@ -99,7 +99,7 @@ void mdb_init() {
 }
 
 bool mdb_send_data(uint8_t len, const uint8_t data[]) {
-    log_hexdump(LL_DEBUG, LM_MDB, "Send Data", len, data);
+    log_hexdump(LL_DEBUG, LM_MDB, "mdb_send_data ():", len, data);
 
     uint8_t chk = 0; 
 
@@ -134,17 +134,17 @@ bool mdb_send_data(uint8_t len, const uint8_t data[]) {
 }
 
 void mdb_send_ack() {
-    log(LL_DEBUG, LM_MDB, "Send ACK");
+    log(LL_DEBUG, LM_MDB, "mdb_send_ack");
     write(0x00, true);
 }
 
 void mdb_send_nack() {
-    log(LL_DEBUG, LM_MDB, "Send NACK");
+    log(LL_DEBUG, LM_MDB, "mdb_send_nack");
     write(0xFF, true);
 }
 
 uint8_t mdb_read(uint8_t *cmd, uint8_t data[]) {
-    //log(LL_DEBUG, LM_MDB, "readBlock");
+    log(LL_DEBUG, LM_MDB, "mdb_read");
 
     uint8_t len = 0;
     uint8_t chk = 0;

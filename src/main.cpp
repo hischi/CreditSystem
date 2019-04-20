@@ -5,10 +5,20 @@
 #include "file_handler/file_handler.h"
 #include "data_handler/data_handler.h"
 #include "rfid/rfid.h"
+#include "TimerOne.h"
 
 uint8_t cmd;
 uint8_t data[64];
 uint8_t len;
+
+void test() {
+  do {
+    len = mdb_read(&cmd, data);
+    if(len > 0)
+      cldev_run(cmd, data);
+  } while(len > 0);
+}
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -40,6 +50,9 @@ void setup() {
   rfid_init();
   log(LL_INFO, LM_MAIN, "Startup finished. Start Loop...");
 
+  Timer1.initialize(3000);
+  Timer1.attachInterrupt(test);
+
   //fh_fopen(1, "00012345.CSV");
   //csv_read_price(5, 5);
   //csv_read_price(5, 21);
@@ -58,7 +71,7 @@ uint8_t tennisCustomerIDRead[8];
 uint32_t transid = 0;
 
 void loop() {
-  //log(LL_DEBUG, LM_MAIN, "Loop Cycle");
+  log(LL_DEBUG, LM_MAIN, "Loop Cycle");
 
   //len = mdb_read(&cmd, data);
   //if(len > 0)

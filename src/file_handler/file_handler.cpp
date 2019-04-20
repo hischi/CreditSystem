@@ -158,9 +158,9 @@ int32_t fh_flen() {
 void fh_flog(uint32_t pos) {
     uint8_t buf[256];
     assertRtn(!fh_fread(pos, 256, buf), LL_ERROR, LM_FH, "Can't read from file");
-    log(LL_DEBUG, LM_FH, "File-Seek-At:", pos);
-    log(LL_DEBUG, LM_FH, "File-Len    :", file.fileSize());
-    log_hexdump(LL_DEBUG, LM_FH, "File-Content:", 256, buf);
+    log(LL_VERBOSE, LM_FH, "File-Seek-At:", pos);
+    log(LL_VERBOSE, LM_FH, "File-Len    :", file.fileSize());
+    log_hexdump(LL_VERBOSE, LM_FH, "File-Content:", 256, buf);
 }
 
 /*
