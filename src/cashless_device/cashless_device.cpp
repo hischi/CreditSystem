@@ -2,6 +2,8 @@
 #include "../error_handler/error_handler.h"
 #include "../mdb/mdb.h"
 #include "../util/price.h"
+#include "../rfid/rfid.h"
+#include "../data_handler/data_handler.h"
 #include <string.h>
 
 #define SERIAL_NUMBER 9051993
@@ -64,12 +66,17 @@ cPrice maxPrice;
 cPrice minPrice;
 } vcmSetup;
 
+bool check_MediaReady();
+bool check_MediaNotReady();
+
 uint8_t answer_JustReset(uint8_t answer[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_JustReset");
     answer[0] = 0x00;
     return 1;
 }
 
 uint8_t answer_ReaderConfigInfo(uint8_t answer[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_ReaderConfigInfo");
     answer[0] = 0x01;               // Reader Config Data Response
     answer[1] = 0x01;               // Only level 1 cmds are supported
     answer[2] = 0x19;               // Currency Code (EUR) High
@@ -82,6 +89,7 @@ uint8_t answer_ReaderConfigInfo(uint8_t answer[]) {
 }
 
 uint8_t answer_DisplayRequest(uint8_t answer[], uint8_t time_tenths, const char msg[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_DisplayRequest");
     uint16_t maxDispSize = ((uint16_t) vcmSetup.rowsOnDisplay)* ((uint16_t) vcmSetup.columnsOnDisplay);
     maxDispSize = (maxDispSize < 32) ? maxDispSize : 32;
     
@@ -93,11 +101,13 @@ uint8_t answer_DisplayRequest(uint8_t answer[], uint8_t time_tenths, const char 
     assertCnt(msg_len > maxDispSize, LL_WARNING, LM_CLDEV, "Message longer than VCM Display");
     msg_len = (msg_len <= maxDispSize) ? msg_len : maxDispSize;
 
+    //memset(&answer[2], '0', maxDispSize);
     memcpy(&answer[2], msg, msg_len);
     return msg_len + 2;
 }
 
 uint8_t answer_BeginSession(uint8_t answer[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_BeginSession");
     answer[0] = 0x03;   // Begin Session Response
     answer[1] = 0xFF;   // no found applicable
     answer[2] = 0xFF;   // no found applicable
@@ -105,32 +115,39 @@ uint8_t answer_BeginSession(uint8_t answer[]) {
 }
 
 uint8_t answer_SessionCancelRequest(uint8_t answer[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_SessionCancelRequest");
     answer[0] = 0x04;   // Session Cancel Request
     return 1;
 }
 
-uint8_t answer_VendApproved(uint8_t answer[], const cPrice &price) {
+uint8_t answer_VendApproved(uint8_t answer[], uint16_t price) {
+    log(LL_DEBUG, LM_CLDEV, "answer_VendApproved");
     answer[0] = 0x05;   // Vend Approved
-    write_price_uint16(price, &answer[1]);
+    answer[1] = (price & 0xFF00) >> 8;
+    answer[2] = (price & 0x00FF);
     return 3;    
 }
 
 uint8_t answer_VendDenied(uint8_t answer[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_VendDenied");
     answer[0] = 0x06;   // Vend Denied
     return 1;
 }
 
 uint8_t answer_EndSession(uint8_t answer[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_EndSession");
     answer[0] = 0x07;   // End Session
     return 1;
 }
 
 uint8_t answer_Cancelled(uint8_t answer[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_Cancelled");
     answer[0] = 0x08;   // Cancelled
     return 1;
 }
 
 uint8_t answer_PeripheralID(uint8_t answer[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_PeripheralID");
     answer[0] = 0x09;   // Peripheral ID
     // 3 chars Manufacturer Code, 12 chars serial number, 12 chars model number
     sprintf((char*) &answer[1], "FGH%012d%012d", SERIAL_NUMBER, MODEL_NUMBER);
@@ -140,12 +157,14 @@ uint8_t answer_PeripheralID(uint8_t answer[]) {
 }
 
 uint8_t answer_MalfunctionError(uint8_t answer[], uint8_t errorCode, uint8_t subCode) {
+    log(LL_DEBUG, LM_CLDEV, "answer_MalfunctionError");
     answer[0] = 0x0A;   // Malfunction / Error
     answer[1] = errorCode | subCode;
     return 2;
 }
 
 uint8_t answer_OutOfSequence(uint8_t answer[]) {
+    log(LL_DEBUG, LM_CLDEV, "answer_OutOfSequence");
     answer[0] = 0x0B;   // out of sequence
     return 1;
 }
@@ -180,23 +199,56 @@ void do_cmd_poll() {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_poll");
 
     // TODO
-    //uint8_t answer[64];
-    //uint8_t len = answer_DisplayRequest(answer, 100, "Hallo Idiot.");
+    uint8_t answer[64];
+    uint8_t len = 0; 
+    //= answer_DisplayRequest(answer, 100, "Hallo Idiot.");
     //mdb_send_data(len, answer);
-    mdb_send_ack();
+    //mdb_send_ack();
+
+    if(state == CS_Enabled && check_MediaReady()) {
+        len = answer_BeginSession(answer);
+        mdb_send_data(len, answer);
+    }
+    else if(state == CS_Session_Idle && check_MediaNotReady()) {
+        len = answer_SessionCancelRequest(answer);
+        mdb_send_data(len, answer);
+    } else
+        mdb_send_ack();
+        
+
+    
+
 }
 
 void do_cmd_vend_request(const uint8_t data[]) {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_vend_request");
 
-    cPrice price = read_price_uint16(data);
+    uint16_t price = (((uint16_t) data[0]) << 8) + data[1];
     uint16_t item = (((uint16_t) data[2]) << 8) + data[3];
+    log(LL_DEBUG, LM_CLDEV, ">>>>>>>>>>>>> Item-ID:", (uint32_t) item);
 
-    // TODO: Do Vend handling
     uint8_t answer[32];
     uint8_t len = 0;
-    len = answer_VendApproved(answer, price);
-    mdb_send_data(len, answer);
+
+    uint32_t membId = rfid_member_present();
+    if(membId > 0 && dh_is_available(membId, item)) {
+        uint32_t discount = dh_calculate_discount(membId, price);
+        price = price - discount;
+        if(dh_create_transaction(membId, item, price, discount)) {
+            len = answer_VendApproved(answer, price);
+            mdb_send_data(len, answer);
+            dh_approve_transaction();
+        } else 
+        {
+            len = answer_VendDenied(answer);
+            mdb_send_data(len, answer);
+        }        
+    } else {
+        len = answer_VendDenied(answer);
+        //len += answer_DisplayRequest(&answer[len], 20, "Schacht gesperrt");
+        mdb_send_data(len, answer);
+    }
+    
 }
 
 void do_cmd_vend_cancel() {
@@ -212,15 +264,15 @@ void do_cmd_vend_success(const uint8_t data[]) {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_vend_success");
 
     uint16_t item = (((uint16_t) data[0]) << 8) + data[1];
-    // TODO: Do Vend handling
-
     mdb_send_ack();
+
+    dh_complete_transaction();
 }
 
 void do_cmd_vend_failure() {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_vend_failure");
 
-    // TODO: Do Vend handling
+    dh_cancle_transaction();
 
     mdb_send_ack();
 }
@@ -388,14 +440,14 @@ bool check_ReaderDisable(uint8_t cmd, const uint8_t data[]) {
     return (cmd == CMD_READER) && (data[0] == SCMD_READER_DISABLE);
 }
 
-bool check_MediaReady(uint8_t cmd, const uint8_t data[]) {
-    // TODO
-    return true;
+bool check_MediaReady() {
+    uint32_t membId = rfid_member_present();
+    return (membId > 0);
 }
 
-bool check_MediaNotReady(uint8_t cmd, const uint8_t data[]) {
-    // TODO
-    return false;
+bool check_MediaNotReady() {
+    uint32_t membId = rfid_member_present();
+    return (membId == 0);
 }
 
 bool check_SessionComplete(uint8_t cmd, const uint8_t data[]) {
@@ -440,7 +492,7 @@ void transition_enabled(uint8_t cmd, const uint8_t data[]) {
         state = CS_Inactive;
     else if(check_ReaderDisable(cmd, data))
         state = CS_Disabled;
-    else if(check_MediaReady(cmd, data))
+    else if(cmd == CMD_POLL && check_MediaReady())
         state = CS_Session_Idle;    
 }
 
@@ -449,7 +501,7 @@ void transition_session_idle(uint8_t cmd, const uint8_t data[]) {
 
     if(check_Reset(cmd, data))
         state = CS_Inactive;
-    else if(check_MediaNotReady(cmd, data) || check_SessionComplete(cmd, data))   
+    else if(check_MediaNotReady() || check_SessionComplete(cmd, data))   
         state = CS_Enabled;
     else if(check_VendRequest(cmd, data)) 
         state = CS_Vend;     
@@ -462,6 +514,8 @@ void transition_vend(uint8_t cmd, const uint8_t data[]) {
         state = CS_Inactive; // TODO: Check for MediaNotReady
     else if(check_VendEnd(cmd, data))
         state = CS_Session_Idle;    
+    else if(check_MediaNotReady() || check_SessionComplete(cmd, data))   
+        state = CS_Enabled;
 }
 
 //----------------------------------------------//

@@ -184,9 +184,39 @@ bool dh_write_last_transaction() {
     return true;
 }
 
+bool dh_is_available(uint32_t memberID, uint16_t itemID){
+    log(LL_DEBUG, LM_DH, "dh_is_available");
+    sMember *member = dh_get_member(memberID);
+
+    if(member != 0) {
+        uint32_t mask = 1 << (itemID-1);
+        log(LL_DEBUG, LM_DH, "Mask:      ", mask);
+        log(LL_DEBUG, LM_DH, "Properties:", (uint32_t) member->properties);
+        return !(mask&member->properties);
+        return true;
+    } else {
+        assertCnt(true, LL_WARNING, LM_DH, "Incorrect member id");
+        return false;
+    }
+}
+
+uint32_t dh_calculate_discount(uint32_t memberID, uint32_t cost){
+    log(LL_DEBUG, LM_DH, "dh_calculate_discount");
+    sMember *member = dh_get_member(memberID);
+
+    if(member != 0) {
+        uint32_t discount = (member->discount * cost) / 100;
+        return discount;
+    } else {
+        assertCnt(true, LL_WARNING, LM_DH, "Incorrect member id");
+        return false;
+    }
+}
+
 bool dh_create_transaction(uint32_t memberID, uint8_t itemID, uint32_t cost, uint16_t discount) {
     log(LL_DEBUG, LM_DH, "dh_create_transaction");
 
+    // Create the transaction and append it to the list
     assertDo(transaction.status <= DH_TA_APPROVED, LL_ERROR, LM_DH, "There was already a transaction in progress. Can't start a new one.", return false;);
 
     assertDo(!dh_read_transaction_header(), LL_ERROR, LM_DH, "Can't start new transaction without valid header", return false;);
@@ -198,6 +228,7 @@ bool dh_create_transaction(uint32_t memberID, uint8_t itemID, uint32_t cost, uin
         transaction.id++; 
     }
 
+    
     transaction.status = DH_TA_CREATED;
     transaction.member_id = memberID;
     transaction.item_id = itemID;
@@ -231,6 +262,21 @@ bool dh_complete_transaction() {
     assertDo(transaction.status != DH_TA_APPROVED, LL_ERROR, LM_DH, "There is no just approved transaction. Out of order", return false;);
 
     transaction.status |= DH_TA_COMPLETED;
+    transaction.datetime_modified = clock_now().unixtime();
+
+    assertDo(!dh_write_last_transaction(), LL_ERROR, LM_DH, "Can't write last transaction", return false;);
+
+    return true;    
+}
+
+bool dh_cancle_transaction() {
+    log(LL_DEBUG, LM_DH, "dh_cancle_transaction");
+
+    assertDo(!dh_read_last_transaction(), LL_ERROR, LM_DH, "Can't read last transaction", return false;);
+
+    assertDo(transaction.status != DH_TA_APPROVED, LL_ERROR, LM_DH, "There is no just approved transaction. Out of order", return false;);
+
+    transaction.status |= DH_TA_CANCLED;
     transaction.datetime_modified = clock_now().unixtime();
 
     assertDo(!dh_write_last_transaction(), LL_ERROR, LM_DH, "Can't write last transaction", return false;);

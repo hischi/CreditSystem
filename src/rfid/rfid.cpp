@@ -3,6 +3,7 @@
 #include "Secrets.h"
 #include "Buffer.h"
 #include "../util/error.h"
+#include "../data_handler/data_handler.h"
 
 #define PN532_RESET_PIN 6 // Not connected
 #define PN532_MISO_PIN 5
@@ -30,6 +31,8 @@ bool pn532_ready = false;
 Desfire pn532;
 DESFIRE_KEY_TYPE piccMasterKey;
 DESFIRE_KEY_TYPE appKey;
+
+uint32_t member_present;
 
 void reset_reader() {
     log(LL_INFO, LM_RFID, "Reader will be reset now...");
@@ -96,14 +99,16 @@ bool authenticatePICC(uint8_t* keyVersion) {
 void rfid_init() {
     log(LL_DEBUG, LM_RFID, "rfid_init");
 
+    member_present = 0;
+
     pn532.InitHardwareSPI(PN532_CLK_PIN, PN532_MISO_PIN, PN532_MOSI_PIN, PN532_CS_PIN, PN532_RESET_PIN);
     reset_reader();
     piccMasterKey.SetKeyData(SECRET_PICC_MASTER_KEY, sizeof(SECRET_PICC_MASTER_KEY), CARD_KEY_VERSION);
     appKey.SetKeyData(SECRET_APPLICATION_KEY, sizeof(SECRET_APPLICATION_KEY), CARD_KEY_VERSION);
 }
 
-bool rfid_card_present() {
-    log(LL_DEBUG, LM_RFID, "rfid_card_present");
+bool check_card_present() {
+    log(LL_DEBUG, LM_RFID, "check_card_present");
 
     assertDo(!pn532_ready, LL_WARNING, LM_RFID, "Reader not ready. Can't detect card. Try to reset...", reset_reader(); return false;);
 
@@ -246,4 +251,77 @@ bool rfid_set_PICC()
         assertDo (!pn532.Authenticate(0, &piccMasterKey), LL_ERROR, LM_RFID, "Key change can't be verified", return false;);
     }
     return true;
+}
+
+void rfid_run() {
+    log(LL_DEBUG, LM_RFID, "rfid_run");
+
+    uint8_t tennisCardID[8];
+    uint8_t tennisCustomerID[8];
+
+    if(check_card_present() && rfid_read_tennis_app(tennisCardID, tennisCustomerID)) {
+        log(LL_DEBUG, LM_RFID, "Tennis data found:");
+        log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Card-ID:    ", 8, tennisCardID);
+        log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Customer-ID:", 8, tennisCustomerID);
+
+        uint32_t cardID = 0;
+        uint32_t membID = 0;
+        for(uint8_t i = 0; i < 8; i++) {
+          cardID *= 10;
+          membID *= 10;
+
+          cardID += tennisCardID[i];
+          membID += tennisCustomerID[i];
+        }
+
+        log(LL_DEBUG, LM_RFID, "Tennis Card ID", cardID);
+        log(LL_DEBUG, LM_RFID, "Tennis Memb ID", membID);
+
+        if(dh_is_authorised(membID, cardID))
+            member_present = membID;
+        else 
+            member_present = 0;
+    } else {
+        member_present = 0;
+    }
+
+    // Set the reader to low power mode
+    rfid_low_power_mode();
+}
+
+uint32_t rfid_member_present(){
+    log(LL_DEBUG, LM_RFID, "rfid_member_present");
+    return member_present;
+}
+
+void rfid_program_card(uint32_t membId, uint32_t cardId) {
+    log(LL_DEBUG, LM_RFID, "rfid_program_card");
+
+    if(check_card_present()) {
+        log(LL_DEBUG, LM_RFID, "Card present. Reset it to default.");
+        assertRtn(!rfid_restore_card(), LL_ERROR, LM_RFID, "Rest to default failed");
+        log(LL_DEBUG, LM_RFID, "Card is restored. Start setting PICC");
+        assertRtn(!rfid_set_PICC(), LL_ERROR, LM_RFID, "PICC set failed");
+        log(LL_DEBUG, LM_RFID, "PICC is set. Programm Tennis Data");
+
+        uint8_t tennisCardID[8];
+        uint8_t tennisCustomerID[8];
+
+        for(int8_t i = 7; i >= 0; i--) {
+          tennisCardID[i] = cardId % 10;
+          tennisCustomerID[i] = membId % 10;
+          cardId /= 10;
+          membId /= 10;
+        }
+
+        log(LL_DEBUG, LM_RFID, "About to write the following tennis data:");
+        log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Card-ID:    ", 8, tennisCardID);
+        log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Customer-ID:", 8, tennisCustomerID);
+
+        if(rfid_store_tennis_app(tennisCardID, tennisCustomerID))
+            log(LL_DEBUG, LM_RFID, "Success.");
+        else
+            log(LL_DEBUG, LM_RFID, "Failed.");
+    } else
+        log(LL_DEBUG, LM_RFID, "No card present.");
 }
