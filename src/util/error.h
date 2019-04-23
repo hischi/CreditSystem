@@ -34,7 +34,9 @@ enum eLogModule {
     LM_RFID = 11,
     LM_DH = 12,
     LM_BM = 13,
-    LM_CS = 14
+    LM_CS = 14,
+    LM_PERI = 15,
+    LM_SERV = 16
 };
 
 void setLogLevel(eLogLevel level);

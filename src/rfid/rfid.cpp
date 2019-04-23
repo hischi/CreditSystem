@@ -34,6 +34,13 @@ DESFIRE_KEY_TYPE appKey;
 
 uint32_t member_present;
 
+bool prog_next;
+uint32_t prog_membId, prog_cardId;
+void (*prog_done_callback)();
+bool restore_next;
+void (*restore_done_callback)();
+
+
 void reset_reader() {
     log(LL_INFO, LM_RFID, "Reader will be reset now...");
 
@@ -105,6 +112,9 @@ void rfid_init() {
     reset_reader();
     piccMasterKey.SetKeyData(SECRET_PICC_MASTER_KEY, sizeof(SECRET_PICC_MASTER_KEY), CARD_KEY_VERSION);
     appKey.SetKeyData(SECRET_APPLICATION_KEY, sizeof(SECRET_APPLICATION_KEY), CARD_KEY_VERSION);
+
+    prog_next = false;
+    restore_next = false;
 }
 
 bool check_card_present() {
@@ -258,32 +268,41 @@ void rfid_run() {
 
     uint8_t tennisCardID[8];
     uint8_t tennisCustomerID[8];
+    uint32_t member_present_helper = 0;
 
-    if(check_card_present() && rfid_read_tennis_app(tennisCardID, tennisCustomerID)) {
-        log(LL_DEBUG, LM_RFID, "Tennis data found:");
-        log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Card-ID:    ", 8, tennisCardID);
-        log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Customer-ID:", 8, tennisCustomerID);
+    if(check_card_present()) {
+        if(prog_next) {
+            rfid_program_card(prog_membId, prog_cardId);
+            (*prog_done_callback)();
+            prog_next = false;
+        } else if(restore_next) {
+            rfid_restore_card();
+            (*restore_done_callback)();
+            restore_next = false;
+        } else if(rfid_read_tennis_app(tennisCardID, tennisCustomerID)) {
+            log(LL_DEBUG, LM_RFID, "Tennis data found:");
+            log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Card-ID:    ", 8, tennisCardID);
+            log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Customer-ID:", 8, tennisCustomerID);
 
-        uint32_t cardID = 0;
-        uint32_t membID = 0;
-        for(uint8_t i = 0; i < 8; i++) {
-          cardID *= 10;
-          membID *= 10;
+            uint32_t cardID = 0;
+            uint32_t membID = 0;
+            for(uint8_t i = 0; i < 8; i++) {
+                cardID *= 10;
+                membID *= 10;
 
-          cardID += tennisCardID[i];
-          membID += tennisCustomerID[i];
+                cardID += tennisCardID[i];
+                membID += tennisCustomerID[i];
+            }
+
+            log(LL_DEBUG, LM_RFID, "Tennis Card ID", cardID);
+            log(LL_DEBUG, LM_RFID, "Tennis Memb ID", membID);
+
+            if(dh_is_authorised(membID, cardID))
+                member_present_helper = membID;
         }
-
-        log(LL_DEBUG, LM_RFID, "Tennis Card ID", cardID);
-        log(LL_DEBUG, LM_RFID, "Tennis Memb ID", membID);
-
-        if(dh_is_authorised(membID, cardID))
-            member_present = membID;
-        else 
-            member_present = 0;
-    } else {
-        member_present = 0;
     }
+
+    member_present = member_present_helper;
 
     // Set the reader to low power mode
     rfid_low_power_mode();
@@ -324,4 +343,24 @@ void rfid_program_card(uint32_t membId, uint32_t cardId) {
             log(LL_DEBUG, LM_RFID, "Failed.");
     } else
         log(LL_DEBUG, LM_RFID, "No card present.");
+}
+
+void rfid_program_card_async(uint32_t membId, uint32_t cardId, void (*prog_done)()) {
+    log(LL_DEBUG, LM_RFID, "rfid_program_card_async");
+
+    if(!prog_next && !restore_next) {
+        prog_done_callback = prog_done;
+        prog_membId = membId;
+        prog_cardId = cardId;
+        prog_next = true;
+    }
+}
+
+void rfid_restore_card_async(void (*restore_done)()) {
+    log(LL_DEBUG, LM_RFID, "rfid_restore_card_async");
+
+    if(!prog_next && !restore_next) {
+        restore_done_callback = restore_done;
+        restore_next = true;
+    }
 }

@@ -15,5 +15,7 @@ bool dh_approve_transaction();
 bool dh_complete_transaction();
 bool dh_cancle_transaction();
 
+sMember* dh_get_member_from_idx(uint32_t idx);
+
 //bool dh_mark_vend(sMember &member, )
 

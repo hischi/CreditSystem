@@ -283,3 +283,12 @@ bool dh_cancle_transaction() {
 
     return true;    
 }
+
+sMember* dh_get_member_from_idx(uint32_t idx) {
+    log(LL_DEBUG, LM_DH, "dh_get_member_from_idx");
+
+    if(idx >= member_count)
+        return 0;
+
+    return &members[idx];    
+}

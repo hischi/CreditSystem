@@ -38,6 +38,10 @@ const char* getModuleName(eLogModule module) {
             return "BusiModel";
         case LM_CS:
             return "CheckSum";
+        case LM_PERI:
+            return "Periphery";
+        case LM_SERV:
+            return "Service";
         default:
             return "UNKNOWN"; 
     }

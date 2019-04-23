@@ -3,7 +3,9 @@
 #include "../mdb/mdb.h"
 #include "../util/price.h"
 #include "../rfid/rfid.h"
+#include "../periphery/periphery.h"
 #include "../data_handler/data_handler.h"
+#include "service_mode.h"
 #include <string.h>
 
 #define SERIAL_NUMBER 9051993
@@ -68,6 +70,8 @@ cPrice minPrice;
 
 bool check_MediaReady();
 bool check_MediaNotReady();
+bool check_ServieMode();
+bool check_FreeMode();
 
 uint8_t answer_JustReset(uint8_t answer[]) {
     log(LL_DEBUG, LM_CLDEV, "answer_JustReset");
@@ -212,12 +216,14 @@ void do_cmd_poll() {
     else if(state == CS_Session_Idle && check_MediaNotReady()) {
         len = answer_SessionCancelRequest(answer);
         mdb_send_data(len, answer);
-    } else
-        mdb_send_ack();
-        
+    } else {
 
-    
-
+        if(check_ServieMode()) {
+            serv_run();
+        } else {
+            mdb_send_ack();
+        }       
+    }
 }
 
 void do_cmd_vend_request(const uint8_t data[]) {
@@ -225,30 +231,46 @@ void do_cmd_vend_request(const uint8_t data[]) {
 
     uint16_t price = (((uint16_t) data[0]) << 8) + data[1];
     uint16_t item = (((uint16_t) data[2]) << 8) + data[3];
-    log(LL_DEBUG, LM_CLDEV, ">>>>>>>>>>>>> Item-ID:", (uint32_t) item);
+    log(LL_DEBUG, LM_CLDEV, "Item-ID:", (uint32_t) item);
 
     uint8_t answer[32];
     uint8_t len = 0;
 
-    uint32_t membId = rfid_member_present();
-    if(membId > 0 && dh_is_available(membId, item)) {
-        uint32_t discount = dh_calculate_discount(membId, price);
-        price = price - discount;
-        if(dh_create_transaction(membId, item, price, discount)) {
-            len = answer_VendApproved(answer, price);
-            mdb_send_data(len, answer);
-            dh_approve_transaction();
-        } else 
-        {
-            len = answer_VendDenied(answer);
-            mdb_send_data(len, answer);
-        }        
-    } else {
+    if(check_ServieMode()) {
+        serv_button_pressed(item);
         len = answer_VendDenied(answer);
-        //len += answer_DisplayRequest(&answer[len], 20, "Schacht gesperrt");
         mdb_send_data(len, answer);
-    }
-    
+
+    } else {
+        uint32_t membId = rfid_member_present();
+        if(membId > 0 && dh_is_available(membId, item)) {
+
+            // Calculate end-price and discount
+            uint32_t discount;
+            if(check_FreeMode()) {
+                discount = price;
+                price = 0;
+            } else {
+                discount = dh_calculate_discount(membId, price);
+                price = price - discount;
+            }
+
+            // Store transition
+            if(dh_create_transaction(membId, item, price, discount)) {
+                len = answer_VendApproved(answer, price);
+                mdb_send_data(len, answer);
+                dh_approve_transaction();
+            } else 
+            {
+                len = answer_VendDenied(answer);
+                mdb_send_data(len, answer);
+            }        
+        } else {
+            len = answer_VendDenied(answer);
+            //len += answer_DisplayRequest(&answer[len], 20, "Schacht gesperrt");
+            mdb_send_data(len, answer);
+        }
+    }    
 }
 
 void do_cmd_vend_cancel() {
@@ -465,6 +487,14 @@ bool check_VendEnd(uint8_t cmd, const uint8_t data[]) {
         return false;
 }
 
+bool check_ServieMode() {
+    return peri_check_dip(0x01);
+}
+
+bool check_FreeMode() {
+    return peri_check_dip(0x02);
+}
+
 //----------------------------------------------//
 // Internal RUNs for each state                 //
 //----------------------------------------------//
@@ -523,11 +553,17 @@ void transition_vend(uint8_t cmd, const uint8_t data[]) {
 //----------------------------------------------//
 
 void cldev_init() {
+    log(LL_DEBUG, LM_CLDEV, "cldev_init");
+
     state = CS_Inactive;
     memset(&vcmSetup, 0, sizeof(vcmSetup));
+    peri_set_led(1, false);
+
+    serv_init();
 }
 
 void cldev_run(uint8_t cmd, const uint8_t data[]) {
+    log(LL_DEBUG, LM_CLDEV, "cldev_run");
 
     // Execute Cmd
     do_cmd(cmd, data);
@@ -557,6 +593,17 @@ void cldev_run(uint8_t cmd, const uint8_t data[]) {
         default:
             assertDo(true, LL_FATAL, LM_CLDEV, "Unknown state", resetOnError());            
     }
+
+    // Set status LED if not in state INACTIVE or DISABLED 
+    if(state != CS_Disabled && state != CS_Inactive)
+    {
+        peri_set_led(1, true);
+    }
+    else
+    {
+        peri_set_led(1, false);
+    }
+    
 }
 
 uint8_t cldev_cmd_len(uint8_t cmd) {

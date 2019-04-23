@@ -5,6 +5,7 @@
 #include "file_handler/file_handler.h"
 #include "data_handler/data_handler.h"
 #include "rfid/rfid.h"
+#include "periphery/periphery.h"
 #include "TimerOne.h"
 
 uint8_t cmd;
@@ -43,6 +44,7 @@ void setup() {
 
   log(LL_INFO, LM_MAIN, "Startup Sequence...");
   clock_init();
+  peri_init();
   fh_init();
   dh_init();
   mdb_init();
