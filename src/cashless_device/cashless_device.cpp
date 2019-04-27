@@ -209,11 +209,11 @@ void do_cmd_poll() {
     //mdb_send_data(len, answer);
     //mdb_send_ack();
 
-    if(state == CS_Enabled && check_MediaReady()) {
+    if(state == CS_Enabled && (check_MediaReady() || check_ServieMode())) {
         len = answer_BeginSession(answer);
         mdb_send_data(len, answer);
     }
-    else if(state == CS_Session_Idle && check_MediaNotReady()) {
+    else if(state == CS_Session_Idle && check_MediaNotReady() && !check_ServieMode()) {
         len = answer_SessionCancelRequest(answer);
         mdb_send_data(len, answer);
     } else {
@@ -522,7 +522,7 @@ void transition_enabled(uint8_t cmd, const uint8_t data[]) {
         state = CS_Inactive;
     else if(check_ReaderDisable(cmd, data))
         state = CS_Disabled;
-    else if(cmd == CMD_POLL && check_MediaReady())
+    else if(cmd == CMD_POLL && (check_MediaReady() || check_ServieMode()))
         state = CS_Session_Idle;    
 }
 
@@ -531,7 +531,7 @@ void transition_session_idle(uint8_t cmd, const uint8_t data[]) {
 
     if(check_Reset(cmd, data))
         state = CS_Inactive;
-    else if(check_MediaNotReady() || check_SessionComplete(cmd, data))   
+    else if((check_MediaNotReady() && !check_ServieMode()) || check_SessionComplete(cmd, data))   
         state = CS_Enabled;
     else if(check_VendRequest(cmd, data)) 
         state = CS_Vend;     
@@ -544,7 +544,7 @@ void transition_vend(uint8_t cmd, const uint8_t data[]) {
         state = CS_Inactive; // TODO: Check for MediaNotReady
     else if(check_VendEnd(cmd, data))
         state = CS_Session_Idle;    
-    else if(check_MediaNotReady() || check_SessionComplete(cmd, data))   
+    else if((check_MediaNotReady() && !check_ServieMode()) || check_SessionComplete(cmd, data))   
         state = CS_Enabled;
 }
 

@@ -32,6 +32,8 @@ void setup() {
   setLogLevel(LM_DESKEY, LL_INFO);
   setLogLevel(LM_MDB, LL_INFO);
   setLogLevel(LM_CS, LL_INFO);
+  setLogLevel(LM_PERI, LL_INFO);
+  setLogLevel(LM_CLDEV, LL_INFO);
   
   delay(5000);
 

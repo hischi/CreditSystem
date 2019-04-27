@@ -48,8 +48,11 @@ void prog_done() {
 
 void prog_card() {
     log(LL_DEBUG, LM_SERV, "prog_card");
-    prog_in_progress = true;
-    rfid_program_card_async(0,0,&prog_done);
+    sMember *member = dh_get_member_from_idx(member_idx);
+    if(member != 0) {
+        prog_in_progress = true;
+        rfid_program_card_async(member->id,member->card_id,&prog_done);
+    }    
 }
 
 void delete_done() {
@@ -103,20 +106,20 @@ void serv_run() {
     uint8_t len = 0;
 
     if(prog_in_progress) {
-        len = answer_DisplayRequest(answer, 1, "PROGRAM:  BITTE KARTE AUFLEGEN");
+        len = answer_DisplayRequest(answer, 10, "PROGRAM:  BITTE KARTE AUFLEGEN");
         mdb_send_data(len, answer);
     } else if(delete_in_progress) {
-        len = answer_DisplayRequest(answer, 1, "LOESCHEN: BITTE KARTE AUFLEGEN");
+        len = answer_DisplayRequest(answer, 10, "LOESCHEN: BITTE KARTE AUFLEGEN");
         mdb_send_data(len, answer);
     } else {
         sMember *member = dh_get_member_from_idx(member_idx);
         if(member == 0) {
-            len = answer_DisplayRequest(answer, 1, "SERVICE: MITGLIED WAEHLEN");
+            len = answer_DisplayRequest(answer, 10, "SERVICE: MITGLIED WAEHLEN");
             mdb_send_data(len, answer);
         } else {
             char text[64];
-            sprintf(text, "%08lu: %8s, %8s", member->id, member->name, member->given_name);
-            len = answer_DisplayRequest(answer, 1, text);
+            sprintf(text, "%08lu: %8s, %8s  ", member->id, member->name, member->given_name);
+            len = answer_DisplayRequest(answer, 10, text);
             mdb_send_data(len, answer);
         }
     }

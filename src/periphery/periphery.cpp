@@ -51,5 +51,5 @@ bool peri_check_dip(uint8_t mask) {
     dip_state |= (digitalRead(DIP3_PIN) << 2);
     dip_state |= (digitalRead(DIP4_PIN) << 3);
 
-    return (dip_state & mask) > 0;
+    return (~dip_state & mask & 0x0F) > 0;
 }

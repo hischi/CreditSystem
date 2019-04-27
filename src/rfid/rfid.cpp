@@ -316,7 +316,10 @@ uint32_t rfid_member_present(){
 void rfid_program_card(uint32_t membId, uint32_t cardId) {
     log(LL_DEBUG, LM_RFID, "rfid_program_card");
 
-    if(check_card_present()) {
+    log(LL_DEBUG, LM_RFID, "Let's programm MembId:", prog_membId);
+    log(LL_DEBUG, LM_RFID, "Let's programm CardId:", prog_cardId);
+
+    //if(check_card_present()) {
         log(LL_DEBUG, LM_RFID, "Card present. Reset it to default.");
         assertRtn(!rfid_restore_card(), LL_ERROR, LM_RFID, "Rest to default failed");
         log(LL_DEBUG, LM_RFID, "Card is restored. Start setting PICC");
@@ -341,8 +344,8 @@ void rfid_program_card(uint32_t membId, uint32_t cardId) {
             log(LL_DEBUG, LM_RFID, "Success.");
         else
             log(LL_DEBUG, LM_RFID, "Failed.");
-    } else
-        log(LL_DEBUG, LM_RFID, "No card present.");
+    //} else
+    //    log(LL_DEBUG, LM_RFID, "No card present.");
 }
 
 void rfid_program_card_async(uint32_t membId, uint32_t cardId, void (*prog_done)()) {
@@ -354,6 +357,9 @@ void rfid_program_card_async(uint32_t membId, uint32_t cardId, void (*prog_done)
         prog_cardId = cardId;
         prog_next = true;
     }
+
+    log(LL_DEBUG, LM_RFID, "Programm MembId:", prog_membId);
+    log(LL_DEBUG, LM_RFID, "Programm CardId:", prog_cardId);
 }
 
 void rfid_restore_card_async(void (*restore_done)()) {
