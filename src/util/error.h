@@ -36,7 +36,8 @@ enum eLogModule {
     LM_BM = 13,
     LM_CS = 14,
     LM_PERI = 15,
-    LM_SERV = 16
+    LM_SERV = 16,
+    LM_TSERV = 17
 };
 
 void setLogLevel(eLogLevel level);

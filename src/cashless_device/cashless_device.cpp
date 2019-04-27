@@ -6,6 +6,7 @@
 #include "../periphery/periphery.h"
 #include "../data_handler/data_handler.h"
 #include "service_mode.h"
+#include "time_service_mode.h"
 #include <string.h>
 
 #define SERIAL_NUMBER 9051993
@@ -71,7 +72,7 @@ cPrice minPrice;
 bool check_MediaReady();
 bool check_MediaNotReady();
 bool check_ServieMode();
-bool check_FreeMode();
+bool check_TimeMode();
 
 uint8_t answer_JustReset(uint8_t answer[]) {
     log(LL_DEBUG, LM_CLDEV, "answer_JustReset");
@@ -219,7 +220,10 @@ void do_cmd_poll() {
     } else {
 
         if(check_ServieMode()) {
-            serv_run();
+            if(check_TimeMode())
+                time_serv_run();
+            else    
+                serv_run();
         } else {
             mdb_send_ack();
         }       
@@ -237,7 +241,10 @@ void do_cmd_vend_request(const uint8_t data[]) {
     uint8_t len = 0;
 
     if(check_ServieMode()) {
-        serv_button_pressed(item);
+        if(check_TimeMode())
+            time_serv_button_pressed(item);
+        else
+            serv_button_pressed(item);
         len = answer_VendDenied(answer);
         mdb_send_data(len, answer);
 
@@ -247,13 +254,8 @@ void do_cmd_vend_request(const uint8_t data[]) {
 
             // Calculate end-price and discount
             uint32_t discount;
-            if(check_FreeMode()) {
-                discount = price;
-                price = 0;
-            } else {
-                discount = dh_calculate_discount(membId, price);
-                price = price - discount;
-            }
+            discount = dh_calculate_discount(membId, price);
+            price = price - discount;
 
             // Store transition
             if(dh_create_transaction(membId, item, price, discount)) {
@@ -491,7 +493,7 @@ bool check_ServieMode() {
     return peri_check_dip(0x01);
 }
 
-bool check_FreeMode() {
+bool check_TimeMode() {
     return peri_check_dip(0x02);
 }
 
@@ -560,6 +562,7 @@ void cldev_init() {
     peri_set_led(1, false);
 
     serv_init();
+    time_serv_init();
 }
 
 void cldev_run(uint8_t cmd, const uint8_t data[]) {

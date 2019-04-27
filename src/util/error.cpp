@@ -42,6 +42,8 @@ const char* getModuleName(eLogModule module) {
             return "Periphery";
         case LM_SERV:
             return "Service";
+        case LM_TSERV:
+            return "TimeServ";
         default:
             return "UNKNOWN"; 
     }

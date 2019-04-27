@@ -59,3 +59,9 @@ DateTime clock_now() {
         return last_reference;
     }
 }
+
+void clock_adjust(DateTime &new_datetime) {
+    log(LL_DEBUG, LM_CLOCK, "clock_adjust");
+
+    rtc_clock.adjust(new_datetime);
+}
