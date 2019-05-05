@@ -14,6 +14,7 @@ bool dh_create_transaction(uint32_t memberID, uint8_t itemID, uint32_t cost, uin
 bool dh_approve_transaction();
 bool dh_complete_transaction();
 bool dh_cancle_transaction();
+bool dh_timeout_transaction();
 
 sMember* dh_get_member_from_idx(uint32_t idx);
 

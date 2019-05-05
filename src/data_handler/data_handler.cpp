@@ -217,8 +217,16 @@ bool dh_create_transaction(uint32_t memberID, uint8_t itemID, uint32_t cost, uin
     log(LL_DEBUG, LM_DH, "dh_create_transaction");
 
     // Create the transaction and append it to the list
-    assertDo(transaction.status <= DH_TA_APPROVED, LL_ERROR, LM_DH, "There was already a transaction in progress. Can't start a new one.", return false;);
-
+    if(transaction.status <= DH_TA_APPROVED) {
+        assertCnt(true, LL_ERROR, LM_DH, "There was already a transaction in progress. Can't start a new one.");
+        
+        if(clock_now().unixtime() - transaction.datetime_modified > 20 ) {
+            log(LL_WARNING, LM_DH, "Timeout of unapproved transaction. Mark as such and continue with the new transaction.");
+            dh_timeout_transaction();
+        } else
+            return false;
+    }
+    
     assertDo(!dh_read_transaction_header(), LL_ERROR, LM_DH, "Can't start new transaction without valid header", return false;);
 
     if(transaction_header.entry_count == 0) {
@@ -247,7 +255,7 @@ bool dh_approve_transaction() {
     assertDo(transaction.status != DH_TA_CREATED, LL_ERROR, LM_DH, "There is no just created transaction. Out of order", return false;);
 
     transaction.status |= DH_TA_APPROVED;
-    transaction.datetime_modified = clock_now().unixtime();
+    //transaction.datetime_modified = clock_now().unixtime();
 
     assertDo(!dh_write_last_transaction(), LL_ERROR, LM_DH, "Can't write last transaction", return false;);
 
@@ -262,7 +270,7 @@ bool dh_complete_transaction() {
     assertDo(transaction.status != DH_TA_APPROVED, LL_ERROR, LM_DH, "There is no just approved transaction. Out of order", return false;);
 
     transaction.status |= DH_TA_COMPLETED;
-    transaction.datetime_modified = clock_now().unixtime();
+    //transaction.datetime_modified = clock_now().unixtime();
 
     assertDo(!dh_write_last_transaction(), LL_ERROR, LM_DH, "Can't write last transaction", return false;);
 
@@ -274,9 +282,24 @@ bool dh_cancle_transaction() {
 
     assertDo(!dh_read_last_transaction(), LL_ERROR, LM_DH, "Can't read last transaction", return false;);
 
-    assertDo(transaction.status != DH_TA_APPROVED, LL_ERROR, LM_DH, "There is no just approved transaction. Out of order", return false;);
+    assertDo(transaction.status > DH_TA_APPROVED, LL_ERROR, LM_DH, "There is no new or just approved transaction. Out of order", return false;);
 
     transaction.status |= DH_TA_CANCLED;
+    transaction.datetime_modified = clock_now().unixtime();
+
+    assertDo(!dh_write_last_transaction(), LL_ERROR, LM_DH, "Can't write last transaction", return false;);
+
+    return true;    
+}
+
+bool dh_timeout_transaction() {
+    log(LL_DEBUG, LM_DH, "dh_timeout_transaction");
+
+    assertDo(!dh_read_last_transaction(), LL_ERROR, LM_DH, "Can't read last transaction", return false;);
+
+    assertDo(transaction.status > DH_TA_APPROVED, LL_ERROR, LM_DH, "There is no new or just approved transaction. Out of order", return false;);
+
+    transaction.status |= DH_TA_TIMEOUT;
     transaction.datetime_modified = clock_now().unixtime();
 
     assertDo(!dh_write_last_transaction(), LL_ERROR, LM_DH, "Can't write last transaction", return false;);

@@ -11,6 +11,12 @@ RTC_PCF8523 rtc_clock;
 
 void clock_reference() {
     DateTime new_reference = rtc_clock.now();
+    
+    if(new_reference.day() > 31 || new_reference.month() > 12 || new_reference.hour() > 24) {
+        log(LL_ERROR, LM_CLOCK, "RTClock delivered invalid timestamp");
+        return;
+    }
+
     uint32_t new_local = micros();
 
     if(new_reference.second() != last_reference.second()) {

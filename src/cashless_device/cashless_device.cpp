@@ -278,6 +278,8 @@ void do_cmd_vend_request(const uint8_t data[]) {
 void do_cmd_vend_cancel() {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_vend_cancel");
 
+    dh_cancle_transaction();
+
     uint8_t answer[32];
     uint8_t len = 0;
     len = answer_VendDenied(answer);
@@ -560,6 +562,7 @@ void cldev_init() {
     state = CS_Inactive;
     memset(&vcmSetup, 0, sizeof(vcmSetup));
     peri_set_led(1, false);
+    peri_set_led(2, false);
 
     serv_init();
     time_serv_init();
@@ -598,6 +601,22 @@ void cldev_run(uint8_t cmd, const uint8_t data[]) {
     }
 
     // Set status LED if not in state INACTIVE or DISABLED 
+    if(state == CS_Disabled || state == CS_Inactive) {
+        peri_set_led(1, false);
+        peri_set_led(2, false);
+    } else {
+        if(state == CS_Enabled) {
+            peri_set_led(1, true);
+            peri_set_led(2, false);
+        } else if(state == CS_Session_Idle) {
+            peri_set_led(1, false);
+            peri_set_led(2, true);
+        } else {
+            peri_set_led(1, true);
+            peri_set_led(2, true);
+        }
+    }
+
     if(state != CS_Disabled && state != CS_Inactive)
     {
         peri_set_led(1, true);

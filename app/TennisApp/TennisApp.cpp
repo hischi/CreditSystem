@@ -45,17 +45,30 @@ int main(int argc, char *argv[])
 	if (!check_args(argc, argv, &task)) {
 		std::cout << "Invalid arguments." << std::endl;
 		print_help();
-		return 1;
+		goto display_error;
 	}
 
 	switch (task) {
-	case T_Pack: return pack(argv[2], argv[3]);
-	case T_Unpack: return unpack(argv[2], argv[3]);
+	case T_Pack: 
+		if (pack(argv[2], argv[3]) != 0)
+			goto display_error;
+		else
+			return 0;
+	case T_Unpack: 
+		if(unpack(argv[2], argv[3]) != 0)
+			goto display_error;
+		else
+			return 0;
 	default:
-		return 1;
+		goto display_error;
 	}
 
 	return 0;
+
+display_error:
+	std::cout << "Press ENTER to exit." << std::endl;
+	std::cin.get();
+	return 1;
 }
 
 int pack(char csv_file[], char db_file[]) {
@@ -75,9 +88,6 @@ int pack(char csv_file[], char db_file[]) {
 		return 1;
 	}
 
-	
-
-
 	// Reopen CSV file with CSV reader
 	io::CSVReader<6, io::trim_chars<' ', '\t'>, io::no_quote_escape<';'>> reader(csv_file);
 
@@ -94,8 +104,16 @@ int pack(char csv_file[], char db_file[]) {
 	char *format;
 	char *formatversion;
 	char *eol;
-	if (!reader.read_row(db_header.version, date, author, format, formatversion, eol)) {
-		std::cout << "Can't read dateabase header from CSV" << std::endl;
+	try {
+		if (!reader.read_row(db_header.version, date, author, format, formatversion, eol)) {
+			std::cout << "Can't read dateabase header from CSV" << std::endl;
+			return 1;
+		}
+	}
+	catch (const io::error::base &ex) {
+		std::cout << "Can't read header. Reason:" << std::endl;
+		ex.format_error_message();
+		std::cout << ex.error_message_buffer << std::endl;
 		return 1;
 	}
 
@@ -133,11 +151,19 @@ int pack(char csv_file[], char db_file[]) {
 	char *name;
 	char *given_name;
 	db_header.entry_count = 0;
-	while (reader.read_row(member.id, name, given_name, member.properties, member.discount, member.card_id)) {
-		strncpy(member.name, name, 16);
-		strncpy(member.given_name, given_name, 16);
-		fwrite(&member, sizeof(member), 1, db_fp);
-		db_header.entry_count++;
+	try {
+		while (reader.read_row(member.id, name, given_name, member.properties, member.discount, member.card_id)) {
+			strncpy(member.name, name, 16);
+			strncpy(member.given_name, given_name, 16);
+			fwrite(&member, sizeof(member), 1, db_fp);
+			db_header.entry_count++;
+		}
+	}
+	catch (const io::error::base &ex ) {
+		std::cout << "Can't read entry " << db_header.entry_count << " (counting starting from 0). Reason:" << std::endl;
+		ex.format_error_message();
+		std::cout << ex.error_message_buffer << std::endl;
+		return 1;
 	}
 
 	// Update entry count in header and write it again
@@ -150,6 +176,8 @@ int pack(char csv_file[], char db_file[]) {
 }
 
 int unpack(char db_file[], char csv_file[]) {
+
+	int nrc = 0;
 
 	// Check if both files exist otherwise return error (1)
 	FILE *csv_fp, *db_fp;
@@ -166,7 +194,7 @@ int unpack(char db_file[], char csv_file[]) {
 
 	// Interprete header
 	sTransactionHeaderCS header_cs;
-	std::cout << "Current file pos: " << ftell(db_fp) << "and " << sizeof(sTransactionHeaderCS) << std::endl;
+	//std::cout << "Current file pos: " << ftell(db_fp) << "and " << sizeof(sTransactionHeaderCS) << std::endl;
 	int test2 = fread(&header_cs, sizeof(sTransactionHeaderCS), 1L, db_fp);
 	if (test2 != 1) {
 		std::cout << "DB file too small to read header" << std::endl;
@@ -176,7 +204,7 @@ int unpack(char db_file[], char csv_file[]) {
 	}
 	fpos_t position = 16L;
 	//fsetpos(db_fp, &position);
-	std::cout << "Current file pos: " << ftell(db_fp) << std::endl;
+	//std::cout << "Current file pos: " << ftell(db_fp) << std::endl;
 
 	char time_str[80];
 	char status_str[8];
@@ -190,12 +218,13 @@ int unpack(char db_file[], char csv_file[]) {
 		std::cout << "DB header invalid checksum" << std::endl;
 		std::cout << "Please check output!" << std::endl;
 		sprintf(status_str, "nein");
+		nrc = 1;
 	}
 
 	// Read date
 	{
 		time_t unix_time = header_cs.header.datetime_modified;
-		tm *time_struct = localtime(&unix_time);
+		tm *time_struct = gmtime(&unix_time);
 		strftime(time_str, sizeof(time_str), "%d.%m.%Y %H:%M:%S", time_struct);
 	}
 	
@@ -211,7 +240,7 @@ int unpack(char db_file[], char csv_file[]) {
 	sTransactionCS transaction_cs;
 
 	for (int i = 0; i < header_cs.header.entry_count; i++) {
-		std::cout << "Current file pos: " << ftell(db_fp) << std::endl;
+		//std::cout << "Current file pos: " << ftell(db_fp) << std::endl;
 		int test = fread(&transaction_cs, sizeof(transaction_cs), 1L, db_fp);
 
 		// Read next transaction
@@ -219,6 +248,7 @@ int unpack(char db_file[], char csv_file[]) {
 			
 			std::cout << "DB file contains an incomplete transaction" << std::endl;
 			std::cout << "Please check output!" << std::endl;
+			nrc = 1;
 			break;
 		}
 
@@ -228,15 +258,24 @@ int unpack(char db_file[], char csv_file[]) {
 			sprintf(status_str, "ja");
 		}
 		else {
-			std::cout << "Transaction has invalid checksum" << std::endl;
+			std::cout << "Transaction " << transaction_cs.transaction.id << " has invalid checksum" << std::endl;
 			std::cout << "Please check output!" << std::endl;
 			sprintf(status_str, "nein");
+			nrc = 1;
 		}
 
 		// Read date
 		time_t unix_time = transaction_cs.transaction.datetime_modified;
-		tm *time_struct = localtime(&unix_time);
-		strftime(time_str, sizeof(time_str), "%d.%m.%Y %H:%M:%S", time_struct);
+		tm *time_struct = gmtime(&unix_time);
+		if (time_struct == 0) {
+			std::cout << "Transaction " << transaction_cs.transaction.id << " has invalid timestamp" << std::endl;
+			std::cout << "Please check output!" << std::endl;
+			sprintf(time_str, "ungueltig");
+			nrc = 1;
+		}
+		else {
+			strftime(time_str, sizeof(time_str), "%d.%m.%Y %H:%M:%S", time_struct);
+		}
 
 		// Write transaction		
 		fprintf(csv_fp, "%d; %s; %d; %hhu; %hhu; %d; %hu; %u; %s\n", transaction_cs.transaction.id, time_str, transaction_cs.transaction.member_id, transaction_cs.transaction.status, transaction_cs.transaction.item_id, transaction_cs.transaction.cost, transaction_cs.transaction.discount, transaction_cs.checksum, status_str);
@@ -244,7 +283,7 @@ int unpack(char db_file[], char csv_file[]) {
 
 	fclose(csv_fp);
 	fclose(db_fp);
-	return 0;
+	return nrc;
 }
 
 bool check_file_extension(const char *str, const char *ext) {

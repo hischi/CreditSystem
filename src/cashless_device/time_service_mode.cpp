@@ -157,31 +157,31 @@ void time_serv_run() {
     uint8_t answer[64];
     uint8_t len = 0;
     char text[64];
-    char *state_text;
+    char state_text[8];
 
     switch(time_state) {
         case TP_DAY:
-        state_text = "TAG  ";
+        sprintf(state_text, "%s", "TAG  ");
         break;
 
         case TP_MONTH:
-        state_text = "MONAT";
+        sprintf(state_text, "%s", "MONAT");
         break;
 
         case TP_YEAR:
-        state_text = "JAHR ";
+        sprintf(state_text, "%s", "JAHR ");
         break;
 
         case TP_HOUR:
-        state_text = "STUND";
+        sprintf(state_text, "%s", "STUND");
         break;
 
         case TP_MINUTE:
-        state_text = "MIN  ";
+        sprintf(state_text, "%s", "MIN  ");
         break;
 
         case TP_SECOND:
-        state_text = "SEK  ";
+        sprintf(state_text, "%s", "SEK  ");
         break;
 
         default:
@@ -189,7 +189,7 @@ void time_serv_run() {
     }
 
     // Format time string and write it
-    sprintf(text, "%02hhu.%02hhu.%04u %02hhu:%02hhu:%02hhu,%03hd %a", new_datetime.day(), new_datetime.month(), new_datetime.year(), new_datetime.hour(), new_datetime.minute(), new_datetime.second(), (int) new_datetime.millis(), state_text);
+    sprintf(text, "%02hhu.%02hhu.%04u %02hhu:%02hhu:%02hhu,%03hd %s   ", new_datetime.day(), new_datetime.month(), new_datetime.year(), new_datetime.hour(), new_datetime.minute(), new_datetime.second(), (int) new_datetime.millis(), state_text);
     len = answer_DisplayRequest(answer, 10, text);
     mdb_send_data(len, answer);
 }
