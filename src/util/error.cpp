@@ -1,7 +1,49 @@
 #include "error.h"
 #include "../clock/clock.h"
+#include "../data_handler/data_handler.h"
+#include "../periphery/periphery.h"
 
+// Logger:
+#define LOG_BUFFER_SIZE     65536
+#define LOG_STORE_THRESHOLD 52480
+char logBuffer[LOG_BUFFER_SIZE];
+uint32_t logLength;
+bool logStoreTrigger;
+#define LOG_STORE_TRIGGER_DIP 0x08
 
+void LogWrite(const char *str) {
+    Serial.write(str);
+    int32_t n = snprintf(logBuffer+logLength, LOG_BUFFER_SIZE-logLength, str);
+    if(n > 0)
+        logLength += n;
+}
+
+void LogWriteHex(uint8_t i) {
+    char str[8];
+    sprintf(str, "%02hhX", i);
+    LogWrite(str);
+}
+
+void LogWriteUInt(uint32_t i) {
+    char str[8];
+    sprintf(str, "%lu", i);
+    LogWrite(str);
+}
+
+void err_log_reset() {
+    logBuffer[0] = 0;
+    logLength = 0;
+    logStoreTrigger = peri_check_dip(LOG_STORE_TRIGGER_DIP);
+}
+
+void err_log_can_store() {
+    if((logLength == LOG_STORE_THRESHOLD) || (logStoreTrigger != peri_check_dip(LOG_STORE_TRIGGER_DIP))) {
+        dh_store_log(logBuffer, logLength);
+        err_log_reset();
+    }
+}
+
+// Error:
 eLogLevel logLevel[32];
 uint8_t logLevelCount = 32;
 uint32_t assertCount;
@@ -49,6 +91,11 @@ const char* getModuleName(eLogModule module) {
     }
 }
 
+
+
+
+
+
 void setLogLevel(eLogLevel level) {
     for(uint8_t i = 0; i < logLevelCount; i++)
         logLevel[i] = level;
@@ -79,6 +126,8 @@ void assertInc() {
 }
 
 void err_init() {
+    err_log_reset();
+
     setLogLevel(LL_DEBUG);
     assertCount = 0;    
 }
@@ -95,35 +144,35 @@ void log_header(eLogLevel level, const char module[]) {
     } else {
         sprintf(str, "%12u ", (unsigned int) millis());
     }
-    Serial.write(str);
+    LogWrite(str);
 
     // Write Log-Level
     switch(level) {
         case LL_FATAL:
-            Serial.write("[FATAL]   "); 
+            LogWrite("[FATAL]   "); 
             break;
         case LL_ERROR:
-            Serial.write("[ERROR]   ");
+            LogWrite("[ERROR]   ");
             break;
         case LL_WARNING:
-            Serial.write("[WARN]    ");
+            LogWrite("[WARN]    ");
             break;
         case LL_INFO:
-            Serial.write("[INFO]    ");
+            LogWrite("[INFO]    ");
             break;
         case LL_DEBUG:
-            Serial.write("[DEBUG]   ");
+            LogWrite("[DEBUG]   ");
             break;
         case LL_VERBOSE:
-            Serial.write("[VERBOSE] ");
+            LogWrite("[VERBOSE] ");
             break;
         default:
-            Serial.write("[UNKNOWN] ");
+            LogWrite("[UNKNOWN] ");
     }
 
     // Format and write Module
     snprintf(str, 11, "%-10s ", module);
-    Serial.write(str);
+    LogWrite(str);
 }
 
 void log(eLogLevel level, const char module[], const char msg[]) {
@@ -133,9 +182,8 @@ void log(eLogLevel level, const char module[], const char msg[]) {
     if(level <= logLevel[0]) {// only write if log level is ok
         log_header(level, module);
         // Write Msg
-        Serial.write(msg);
-        Serial.write('\n');
-        Serial.flush();
+        LogWrite(msg);
+        LogWrite("\n");
     }
 }
 
@@ -146,12 +194,11 @@ void log(eLogLevel level, const char module[], const char msg[], uint32_t value)
     if(level <= logLevel[0]) {// only write if log level is ok
         log_header(level, module);
         // Write Msg
-        Serial.write(msg);
-        Serial.print(" ");
+        LogWrite(msg);
+        LogWrite(" ");
         // Write value
-        Serial.print(value);
-        Serial.write('\n');
-        Serial.flush();
+        LogWriteUInt(value);
+        LogWrite("\n");
     }
 }
 
@@ -162,12 +209,11 @@ void log(eLogLevel level, const char module[], const char msg[], float value) {
     if(level <= logLevel[0]) {// only write if log level is ok
         log_header(level, module);
         // Write Msg
-        Serial.write(msg);
-        Serial.print(" ");
+        LogWrite(msg);
+        LogWrite(" ");
         // Write value
-        Serial.print(value);
-        Serial.write('\n');
-        Serial.flush();
+        LogWriteUInt(value);
+        LogWrite("\n");
     }
 }
 
@@ -178,12 +224,11 @@ void log(eLogLevel level, const char module[], const char msg[], const char str[
     if(level <= logLevel[0]) {// only write if log level is ok
         log_header(level, module);
         // Write Msg
-        Serial.write(msg);
-        Serial.print(" ");
+        LogWrite(msg);
+        LogWrite(" ");
         // Write value
-        Serial.write(str);
-        Serial.write('\n');
-        Serial.flush();
+        LogWrite(str);
+        LogWrite("\n");
     }
 }
 
@@ -194,14 +239,13 @@ void log(eLogLevel level, const char module[], const char msg[], const cPrice &p
     if(level <= logLevel[0]) {// only write if log level is ok
         log_header(level, module);
         // Write Msg
-        Serial.write(msg);
-        Serial.print(" ");
+        LogWrite(msg);
+        LogWrite(" ");
         // Write value
-        Serial.print(price.GetEuros());
-        Serial.write(",");
-        Serial.print(price.GetCents());
-        Serial.write(" EUR\n");
-        Serial.flush();
+        LogWriteUInt(price.GetEuros());
+        LogWrite(",");
+        LogWriteUInt(price.GetCents());
+        LogWrite(" EUR\n");
     }
 }
 
@@ -212,15 +256,14 @@ void log_hexdump(eLogLevel level, const char module[], const char msg[], uint16_
     if(level <= logLevel[0]) {// only write if log level is ok
         log_header(level, module);
         // Write Msg
-        Serial.write(msg);
-        Serial.print(' ');
+        LogWrite(msg);
+        LogWrite(" ");
         // Write hex values
         for(uint16_t i = 0; i < len; i++) {
-            Serial.print(data[i], HEX);
-            Serial.print(' ');
+            LogWriteHex(data[i]);
+            LogWrite(" ");
         }
-        Serial.write('\n');
-        Serial.flush();
+        LogWrite("\n");
     }
 }
 
@@ -231,9 +274,8 @@ void log(eLogLevel level, eLogModule module, const char msg[]) {
     if(level <= logLevel[module]) {// only write if log level is ok
         log_header(level, getModuleName(module));
         // Write Msg
-        Serial.write(msg);
-        Serial.write('\n');
-        Serial.flush();
+        LogWrite(msg);
+        LogWrite("\n");
     }
 }
 
@@ -244,12 +286,11 @@ void log(eLogLevel level, eLogModule module, const char msg[], uint32_t value) {
     if(level <= logLevel[module]) {// only write if log level is ok
         log_header(level, getModuleName(module));
         // Write Msg
-        Serial.write(msg);
-        Serial.print(" ");
+        LogWrite(msg);
+        LogWrite(" ");
         // Write value
-        Serial.print(value);
-        Serial.write('\n');
-        Serial.flush();
+        LogWriteUInt(value);
+        LogWrite("\n");
     }
 }
 
@@ -260,12 +301,11 @@ void log(eLogLevel level, eLogModule module, const char msg[], float value) {
     if(level <= logLevel[module]) {// only write if log level is ok
         log_header(level, getModuleName(module));
         // Write Msg
-        Serial.write(msg);
-        Serial.print(" ");
+        LogWrite(msg);
+        LogWrite(" ");
         // Write value
-        Serial.print(value);
-        Serial.write('\n');
-        Serial.flush();
+        LogWriteUInt(value);
+        LogWrite("\n");
     }
 }
 
@@ -276,12 +316,11 @@ void log(eLogLevel level, eLogModule module, const char msg[], const char str[])
     if(level <= logLevel[module]) {// only write if log level is ok
         log_header(level, getModuleName(module));
         // Write Msg
-        Serial.write(msg);
-        Serial.print(" ");
+        LogWrite(msg);
+        LogWrite(" ");
         // Write value
-        Serial.write(str);
-        Serial.write('\n');
-        Serial.flush();
+        LogWrite(str);
+        LogWrite("\n");
     }
 }
 
@@ -292,14 +331,13 @@ void log(eLogLevel level, eLogModule module, const char msg[], const cPrice &pri
     if(level <= logLevel[module]) {// only write if log level is ok
         log_header(level, getModuleName(module));
         // Write Msg
-        Serial.write(msg);
-        Serial.print(" ");
+        LogWrite(msg);
+        LogWrite(" ");
         // Write value
-        Serial.print(price.GetEuros());
-        Serial.write(",");
-        Serial.print(price.GetCents());
-        Serial.write(" EUR\n");
-        Serial.flush();
+        LogWriteUInt(price.GetEuros());
+        LogWrite(",");
+        LogWriteUInt(price.GetCents());
+        LogWrite(" EUR\n");
     }
 }
 
@@ -310,15 +348,14 @@ void log(eLogLevel level, eLogModule module, const char msg[], const DateTime &d
     if(level <= logLevel[module]) {// only write if log level is ok
         log_header(level, getModuleName(module));
         // Write Msg
-        Serial.write(msg);
-        Serial.print(" ");
+        LogWrite(msg);
+        LogWrite(" ");
 
         // Write value
         char datetime_str[20];
         sprintf(datetime_str, "%02hu.%02hu.%04u %02hu:%02hu:%02hu", datetime.day(), datetime.month(), datetime.year(), datetime.hour(), datetime.minute(), datetime.second());
-        Serial.write(datetime_str);
-        Serial.write("\n");
-        Serial.flush();
+        LogWrite(datetime_str);
+        LogWrite("\n");
     }
 }
 
@@ -329,14 +366,13 @@ void log_hexdump(eLogLevel level, eLogModule module, const char msg[], uint16_t 
     if(level <= logLevel[module]) {// only write if log level is ok
         log_header(level, getModuleName(module));
         // Write Msg
-        Serial.write(msg);
-        Serial.print(' ');
+        LogWrite(msg);
+        LogWrite(" ");
         // Write hex values
         for(uint16_t i = 0; i < len; i++) {
-            Serial.print(data[i], HEX);
-            Serial.print(' ');
+            LogWriteHex(data[i]);
+            LogWrite(" ");
         }
-        Serial.write('\n');
-        Serial.flush();
+        LogWrite("\n");
     }
 }

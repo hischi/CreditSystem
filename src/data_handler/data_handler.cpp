@@ -12,6 +12,9 @@ uint32_t member_count;
 sTransaction transaction;
 sTransactionHeader transaction_header;
 
+uint8_t log_idx;
+#define MAX_LOG_IDX 32
+
 void dh_load_members() {
     log(LL_DEBUG, LM_DH, "dh_load_members");
 
@@ -38,7 +41,6 @@ void dh_load_members() {
     fh_fclose();
 }
 
-
 void dh_init() {
     log(LL_DEBUG, LM_DH, "dh_init");
 
@@ -50,6 +52,8 @@ void dh_init() {
     }
 
     transaction.status = DH_TA_CORRUPTED;
+
+    log_idx = 0;
 }
 
 sMember* dh_get_member(uint32_t memberID) {
@@ -232,7 +236,7 @@ bool dh_create_transaction(uint32_t memberID, uint8_t itemID, uint32_t cost, uin
     if(transaction_header.entry_count == 0) {
         transaction.id = 0;
     } else {
-        assertDo(!dh_read_last_transaction(), LL_ERROR, LM_DH, "Can't start new transaction without valid header", return false;);
+        assertDo(!dh_read_last_transaction(), LL_ERROR, LM_DH, "Can't start new transaction without knowing last transaction", return false;);
         transaction.id++; 
     }
 
@@ -314,4 +318,25 @@ sMember* dh_get_member_from_idx(uint32_t idx) {
         return 0;
 
     return &members[idx];    
+}
+
+
+
+bool dh_store_log(char *log_buffer, uint32_t size) {
+    log(LL_DEBUG, LM_DH, "dh_store_log");
+
+    char log_name[13];
+    sprintf(log_name, "LOG%3d.txt", log_idx);
+    log(LL_DEBUG, LM_DH, "Generate new log File: ", log_name);
+
+    assertDo(!fh_fopen(1, log_name), LL_ERROR, LM_DH, "Can't open new or existing log", return false;);
+
+    // Always start with an empty file
+    fh_clear();
+
+    fh_fwrite(0, size, (uint8_t*) log_buffer);
+    fh_fclose();
+
+    // Calculate next log idx:
+    log_idx = (log_idx + 1) % MAX_LOG_IDX;
 }

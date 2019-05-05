@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 
-void rfid_init();
+void rfid_init(bool autoLog);
 
 uint32_t rfid_member_present();
 

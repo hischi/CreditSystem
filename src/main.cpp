@@ -8,6 +8,8 @@
 #include "periphery/periphery.h"
 #include "TimerOne.h"
 
+#define AUTO_LOG true
+
 uint8_t cmd;
 uint8_t data[64];
 uint8_t len;
@@ -51,7 +53,7 @@ void setup() {
   dh_init();
   mdb_init();
   cldev_init();
-  rfid_init();
+  rfid_init(AUTO_LOG);
   log(LL_INFO, LM_MAIN, "Startup finished. Start Loop...");
 
   Timer1.initialize(3000);

@@ -47,6 +47,8 @@ eLogLevel getLogLevel();
 bool checkLogLevel(eLogModule module, eLogLevel level);
 
 void err_init();
+void err_log_can_store();
+void err_log_reset();
 
 uint32_t getAssertCount();
 void assertInc();

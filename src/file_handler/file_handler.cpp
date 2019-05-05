@@ -163,6 +163,12 @@ void fh_flog(uint32_t pos) {
     log_hexdump(LL_VERBOSE, LM_FH, "File-Content:", 256, buf);
 }
 
+void fh_clear() {
+    log(LL_DEBUG, LM_FH, "fh_clear");
+
+    file.truncate(0);
+}
+
 /*
 void insert(const char insert_buffer[], uint32_t insert_len) {
     log(LL_DEBUG, LM_FH, "insert");

@@ -15,5 +15,6 @@ int32_t fh_fwrite(uint32_t pos, uint16_t len, uint8_t *buf);
 int32_t fh_fappend(uint16_t len, uint8_t *buf);
 
 int32_t fh_flen();
+void fh_clear();
 
 void fh_flog(uint32_t pos);

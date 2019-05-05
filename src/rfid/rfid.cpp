@@ -40,6 +40,7 @@ void (*prog_done_callback)();
 bool restore_next;
 void (*restore_done_callback)();
 
+bool autoLogOn;
 
 void reset_reader() {
     log(LL_INFO, LM_RFID, "Reader will be reset now...");
@@ -103,8 +104,10 @@ bool authenticatePICC(uint8_t* keyVersion) {
     return true;
 }
 
-void rfid_init() {
+void rfid_init(bool autoLog) {
     log(LL_DEBUG, LM_RFID, "rfid_init");
+
+    autoLogOn = autoLog;
 
     member_present = 0;
 
@@ -300,6 +303,9 @@ void rfid_run() {
             if(dh_is_authorised(membID, cardID))
                 member_present_helper = membID;
         }
+    } else {
+        if(autoLogOn)
+            err_log_can_store();
     }
 
     member_present = member_present_helper;
