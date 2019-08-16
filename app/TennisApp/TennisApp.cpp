@@ -225,7 +225,15 @@ int unpack(char db_file[], char csv_file[]) {
 	{
 		time_t unix_time = header_cs.header.datetime_modified;
 		tm *time_struct = gmtime(&unix_time);
-		strftime(time_str, sizeof(time_str), "%d.%m.%Y %H:%M:%S", time_struct);
+		if (time_struct == 0) {
+			std::cout << "Header has invalid timestamp" << std::endl;
+			std::cout << "Please check output!" << std::endl;
+			sprintf(time_str, "ungueltig (%u)", unix_time);
+			nrc = 1;
+		} else {
+			strftime(time_str, sizeof(time_str), "%d.%m.%Y %H:%M:%S", time_struct);
+		}
+		
 	}
 	
 
@@ -270,7 +278,7 @@ int unpack(char db_file[], char csv_file[]) {
 		if (time_struct == 0) {
 			std::cout << "Transaction " << transaction_cs.transaction.id << " has invalid timestamp" << std::endl;
 			std::cout << "Please check output!" << std::endl;
-			sprintf(time_str, "ungueltig");
+			sprintf(time_str, "ungueltig (%u)", unix_time);
 			nrc = 1;
 		}
 		else {
