@@ -1,2 +1,10 @@
 # Ignore any executables
 bin/*
+.pioenvs/*
+.piolibdeps/*
+.vscode/*
+.pio/*
+app/TennisApp/Debug/*
+app/TennisApp/Release/*
+app/TennisApp/x64/*
+*.vcxproj.user
