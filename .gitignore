@@ -3,3 +3,4 @@ bin/*
 .pioenvs/*
 .piolibdeps/*
 .vscode/*
+.pio/*
