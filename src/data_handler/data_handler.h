@@ -27,3 +27,5 @@ bool dh_timeout_transaction();
  * Access to log
  **/
 bool dh_store_log(char *log_buffer, uint32_t size);
+
+bool dh_prepare_log();

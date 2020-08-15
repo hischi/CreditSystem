@@ -18,3 +18,5 @@ int32_t fh_flen();
 void fh_clear();
 
 void fh_flog(uint32_t pos);
+
+bool fh_mkdir(uint8_t card, const char path[], const char name[]);

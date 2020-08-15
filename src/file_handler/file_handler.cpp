@@ -47,7 +47,7 @@ void fh_init() {
     }
 }
 
-bool traversePath(const char path[]) {
+bool traversePath(const char path[], bool dirExpected) {
     log(LL_DEBUG, LM_FH, "traversePath");
 
     char next[16];
@@ -69,16 +69,21 @@ bool traversePath(const char path[]) {
         log(LL_DEBUG, LM_FH, "Traverse to next dir");
         log(LL_DEBUG, LM_FH, next);
 
-        assertDo(!next_file.open(&file, next, O_RDONLY), LL_ERROR, LM_FH, "Can't open next file", return false;);
+        assertDo(!next_file.open(&file, next, O_RDONLY), LL_ERROR, LM_FH, "Can't open next dir file", return false;);
         assertDo(!file.close(), LL_ERROR, LM_FH, "Can't close dir file", return false;);
 
         file = next_file;
-        return traversePath(&path[i+1]);
+        return traversePath(&path[i+1], dirExpected);
     } else {
-        log(LL_DEBUG, LM_FH, "Open file");
-        log(LL_DEBUG, LM_FH, path);
+        log(LL_DEBUG, LM_FH, "Open ", path);
 
-        assertDo(!next_file.open(&file, path, O_RDWR | O_CREAT), LL_ERROR, LM_FH, "Can't open next file", return false;);
+        if(dirExpected) {
+            log(LL_DEBUG, LM_FH, "As Directoy");
+            assertDo(!next_file.open(&file, path, O_RDONLY), LL_ERROR, LM_FH, "Can't open directory", return false;);
+        } else {
+            log(LL_DEBUG, LM_FH, "As File");
+            assertDo(!next_file.open(&file, path, O_RDWR | O_CREAT), LL_ERROR, LM_FH, "Can't open file", return false;);
+        }
         assertDo(!file.close(), LL_ERROR, LM_FH, "Can't close dir file", return false;);
 
         file = next_file;
@@ -93,11 +98,11 @@ bool fh_fopen(uint8_t card, const char path[]) {
     if(card == 1) {
         assertDo(!fs1_ready, LL_WARNING, LM_FH, "Can't open file on SD-card 1. FS not ready", return false;);
         file = root1;
-        return traversePath(path);
+        return traversePath(path, false);
     } else if(card == 2) {
         assertDo(!fs2_ready, LL_WARNING, LM_FH, "Can't open file on SD-card 2. FS not ready", return false;);
         file = root2;
-        return traversePath(path);
+        return traversePath(path, false);
     } else {
         assertCnt(true, LL_ERROR, LM_FH, "Invalid SD-card number");
         return false;
@@ -169,51 +174,33 @@ void fh_clear() {
     file.truncate(0);
 }
 
-/*
-void insert(const char insert_buffer[], uint32_t insert_len) {
-    log(LL_DEBUG, LM_FH, "insert");
+bool fh_mkdir(uint8_t card, const char path[], const char name[]) {
+    log(LL_DEBUG, LM_FH, "fh_mkdir(..): ", path);
+    SdFile newDir;
 
-    char buffer[512];
-    
-    assertRtn(!file.isFile() || !file.isOpen(), LL_ERROR, LM_FH, "File not valid (isFile && opened)");               // file must be valid
+    file.close();
 
-    uint32_t insertSeek = file.curPosition();
-
-    file.seekEnd();
-    uint32_t newSeek = file.curPosition();
-    uint32_t max_len;
-
-    log(LL_DEBUG, LM_FH, "InsertSeek:", insertSeek);
-    log(LL_DEBUG, LM_FH, "EndSeek:", newSeek);
-
-    // Copy full buffers
-    while(newSeek > insertSeek) {
-        
-        if(newSeek < 512 || newSeek-512 < insertSeek)
-        {
-            max_len = newSeek - insertSeek;
-            newSeek = insertSeek;
-        } else {
-            max_len = 512;
-            newSeek -= 512;
-        }
-
-        log(LL_DEBUG, LM_FH, "Copy from:", newSeek);
-
-        file.seekSet(newSeek);
-        uint32_t copy_len = file.read(buffer, max_len);
-        file.seekCur(-copy_len+insert_len);
-
-        log(LL_DEBUG, LM_FH, "Copy to:", file.curPosition());
-        log(LL_DEBUG, LM_FH, "N Bytes:", copy_len);
-        file.write(buffer, copy_len);
-        file.sync();
+    if(card == 1) {
+        assertDo(!fs1_ready, LL_WARNING, LM_FH, "Can't open file on SD-card 1. FS not ready", return false;);
+        file = root1;
+        assertDo(!traversePath(path, true), LL_WARNING, LM_FH, "Can't find path on SD-card 1", return false;);
+    } else if(card == 2) {
+        assertDo(!fs2_ready, LL_WARNING, LM_FH, "Can't open file on SD-card 2. FS not ready", return false;);
+        file = root2;
+        assertDo(!traversePath(path, true), LL_WARNING, LM_FH, "Can't find path on SD-card 2", return false;);
+    } else {
+        assertCnt(true, LL_ERROR, LM_FH, "Invalid SD-card number");
+        return false;
     }
-    log(LL_DEBUG, LM_FH, "Everything moved to make place for insert");
+    
+    assertDo(file.isFile(), LL_WARNING, LM_FH, "The path does not specify a directory but a file", return false;);
+    
+    if(newDir.makeDir(&file, name) > 0) {
+        log(LL_INFO, LM_FH, "New subdir created at: ", path);
+        log(LL_INFO, LM_FH, "Sub-Dir Name: ", name);
+    }
+    else
+        log(LL_WARNING, LM_FH, "Subdir already exists. Data could be overwritten. Dir-Name: ", name);
 
-    file.seekSet(insertSeek);
-    file.write(insert_buffer, insert_len);
-    file.sync();
-    log(LL_DEBUG, LM_FH, "Insert done");
+    return true;
 }
-*/

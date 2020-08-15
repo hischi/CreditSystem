@@ -74,6 +74,28 @@ bool check_MediaNotReady();
 bool check_ServieMode();
 bool check_TimeMode();
 
+void log_state(eCashlessState cl_state) {
+    switch(cl_state) {
+        case CS_Inactive:
+            log(LL_INFO, LM_CLDEV, "Inactive");
+            break;
+        case CS_Disabled:
+            log(LL_INFO, LM_CLDEV, "Disabled");
+            break;
+        case CS_Enabled:
+            log(LL_INFO, LM_CLDEV, "Enabled");
+            break;
+        case CS_Session_Idle:
+            log(LL_INFO, LM_CLDEV, "Session-Idle");
+            break;
+        case CS_Vend:
+            log(LL_INFO, LM_CLDEV, "Vend");
+            break;
+        default:
+            log(LL_INFO, LM_CLDEV, "UNKNOWN");
+    }
+}
+
 uint8_t answer_JustReset(uint8_t answer[]) {
     log(LL_DEBUG, LM_CLDEV, "answer_JustReset");
     answer[0] = 0x00;
@@ -114,8 +136,8 @@ uint8_t answer_DisplayRequest(uint8_t answer[], uint8_t time_tenths, const char 
 uint8_t answer_BeginSession(uint8_t answer[]) {
     log(LL_DEBUG, LM_CLDEV, "answer_BeginSession");
     answer[0] = 0x03;   // Begin Session Response
-    answer[1] = 0xFF;   // no found applicable
-    answer[2] = 0xFF;   // no found applicable
+    answer[1] = 0x27;   // no found applicable
+    answer[2] = 0x10;   // no found applicable
     return 3;
 }
 
@@ -213,10 +235,12 @@ void do_cmd_poll() {
     if(state == CS_Enabled && (check_MediaReady() || check_ServieMode())) {
         len = answer_BeginSession(answer);
         mdb_send_data(len, answer);
+        log(LL_INFO, LM_CLDEV, "Request sent to Begin Session");
     }
     else if(state == CS_Session_Idle && check_MediaNotReady() && !check_ServieMode()) {
         len = answer_SessionCancelRequest(answer);
         mdb_send_data(len, answer);
+        log(LL_INFO, LM_CLDEV, "Request sent to Cancle Session");
     } else {
 
         if(check_ServieMode()) {
@@ -235,7 +259,9 @@ void do_cmd_vend_request(const uint8_t data[]) {
 
     uint16_t price = (((uint16_t) data[0]) << 8) + data[1];
     uint16_t item = (((uint16_t) data[2]) << 8) + data[3];
-    log(LL_DEBUG, LM_CLDEV, "Item-ID:", (uint32_t) item);
+    log(LL_INFO, LM_CLDEV, "Customer Requested the following item:");
+    log(LL_INFO, LM_CLDEV,  "    Item-ID:", (uint32_t) item);
+    log(LL_INFO, LM_CLDEV,  "    Item-Price:", (uint32_t) price);
 
     uint8_t answer[32];
     uint8_t len = 0;
@@ -262,15 +288,18 @@ void do_cmd_vend_request(const uint8_t data[]) {
                 len = answer_VendApproved(answer, price);
                 mdb_send_data(len, answer);
                 dh_approve_transaction();
+                log(LL_INFO, LM_CLDEV, "Vend was approved with actual price: ", (uint32_t) price);
             } else 
             {
                 len = answer_VendDenied(answer);
                 mdb_send_data(len, answer);
+                log(LL_INFO, LM_CLDEV, "Vend was denied");
             }        
         } else {
             len = answer_VendDenied(answer);
             //len += answer_DisplayRequest(&answer[len], 20, "Schacht gesperrt");
             mdb_send_data(len, answer);
+            log(LL_INFO, LM_CLDEV, "Vend was denied because of invalid item choice");
         }
     }    
 }
@@ -278,6 +307,7 @@ void do_cmd_vend_request(const uint8_t data[]) {
 void do_cmd_vend_cancel() {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_vend_cancel");
 
+    log(LL_INFO, LM_CLDEV, "Vend was cancled by customer");
     dh_cancle_transaction();
 
     uint8_t answer[32];
@@ -292,12 +322,15 @@ void do_cmd_vend_success(const uint8_t data[]) {
     uint16_t item = (((uint16_t) data[0]) << 8) + data[1];
     mdb_send_ack();
 
+    log(LL_INFO, LM_CLDEV, "Vend was a success. Customer got item");
     dh_complete_transaction();
+    
 }
 
 void do_cmd_vend_failure() {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_vend_failure");
 
+    log(LL_INFO, LM_CLDEV, "Vend failed. Customer did not get any item");
     dh_cancle_transaction();
 
     mdb_send_ack();
@@ -310,6 +343,7 @@ void do_cmd_vend_complete() {
     uint8_t len = 0;
     len = answer_EndSession(answer);
     mdb_send_data(len, answer);
+    log(LL_INFO, LM_CLDEV, "Vend is now completed");
 }
 
 void do_cmd_vend_cashsale() {
@@ -319,13 +353,13 @@ void do_cmd_vend_cashsale() {
 
 void do_cmd_reader_disable() {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_reader_disable");
-
+    log(LL_WARNING, LM_CLDEV, "Disable Cashless-Device");
     mdb_send_ack(); // Do nothing but respond
 }
 
 void do_cmd_reader_enable() {
     log(LL_DEBUG, LM_CLDEV, "do_cmd_reader_enable");
-
+    log(LL_INFO, LM_CLDEV, "Enable Cashless-Device");
     mdb_send_ack(); // Do nothing but respond
 }
 
@@ -571,6 +605,8 @@ void cldev_init() {
 void cldev_run(uint8_t cmd, const uint8_t data[]) {
     log(LL_DEBUG, LM_CLDEV, "cldev_run");
 
+    eCashlessState old_state = state;
+
     // Execute Cmd
     do_cmd(cmd, data);
 
@@ -626,6 +662,13 @@ void cldev_run(uint8_t cmd, const uint8_t data[]) {
         peri_set_led(1, false);
     }
     
+    if(state != old_state) {
+        log(LL_INFO, LM_CLDEV, "Cashless-Device-State has changed from");
+        log_state(old_state);
+        log(LL_INFO, LM_CLDEV, "to");
+        log_state(state);
+    }
+
 }
 
 uint8_t cldev_cmd_len(uint8_t cmd) {

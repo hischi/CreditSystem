@@ -27,15 +27,7 @@ void setup() {
   // put your setup code here, to run once:
   err_init();
 
-  setLogLevel(LL_DEBUG);
-  setLogLevel(LM_MAIN, LL_DEBUG);
-  setLogLevel(LM_PN532, LL_INFO);
-  setLogLevel(LM_DESFIRE, LL_INFO);
-  setLogLevel(LM_DESKEY, LL_INFO);
-  setLogLevel(LM_MDB, LL_INFO);
-  setLogLevel(LM_CS, LL_INFO);
-  setLogLevel(LM_PERI, LL_INFO);
-  setLogLevel(LM_CLDEV, LL_INFO);
+  setLogLevel(LL_INFO);
   
   delay(5000);
 

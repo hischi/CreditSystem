@@ -58,11 +58,11 @@ void reset_reader() {
     
         char Buf[80];
         sprintf(Buf, "Chip: PN5%02X, Firmware version: %d.%d", IC, VersionHi, VersionLo);
-        log(LL_DEBUG, LM_RFID, Buf);
+        log(LL_INFO, LM_RFID, Buf);
         sprintf(Buf, "Supports ISO 14443A:%s, ISO 14443B:%s, ISO 18092:%s", (Flags & 1) ? "Yes" : "No",
                                                                                 (Flags & 2) ? "Yes" : "No",
                                                                                 (Flags & 4) ? "Yes" : "No");
-        log(LL_DEBUG, LM_RFID, Buf);
+        log(LL_INFO, LM_RFID, Buf);
          
         // Set the max number of retry attempts to read from a card.
         // This prevents us from waiting forever for a card, which is the default behaviour of the PN532.
@@ -133,7 +133,7 @@ bool check_card_present() {
 
     if (card.cardType == CARD_Desfire && card.uidLength > 0) // The card is a Desfire card in random ID mode
     {
-        log(LL_DEBUG, LM_RFID, "Desfire card is present");
+        log(LL_INFO, LM_RFID, "Desfire card is present");
         return true;
     } else if(card.uidLength == 0)
         log(LL_DEBUG, LM_RFID, "No valid Desfire found");
@@ -283,7 +283,7 @@ void rfid_run() {
             (*restore_done_callback)();
             restore_next = false;
         } else if(rfid_read_tennis_app(tennisCardID, tennisCustomerID)) {
-            log(LL_DEBUG, LM_RFID, "Tennis data found:");
+            log(LL_INFO, LM_RFID, "Tennis data found:");
             log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Card-ID:    ", 8, tennisCardID);
             log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Customer-ID:", 8, tennisCustomerID);
 
@@ -297,8 +297,8 @@ void rfid_run() {
                 membID += tennisCustomerID[i];
             }
 
-            log(LL_DEBUG, LM_RFID, "Tennis Card ID", cardID);
-            log(LL_DEBUG, LM_RFID, "Tennis Memb ID", membID);
+            log(LL_INFO, LM_RFID, "Tennis Card ID", cardID);
+            log(LL_INFO, LM_RFID, "Tennis Memb ID", membID);
 
             if(dh_is_authorised(membID, cardID))
                 member_present_helper = membID;
@@ -322,15 +322,15 @@ uint32_t rfid_member_present(){
 void rfid_program_card(uint32_t membId, uint32_t cardId) {
     log(LL_DEBUG, LM_RFID, "rfid_program_card");
 
-    log(LL_DEBUG, LM_RFID, "Let's programm MembId:", prog_membId);
-    log(LL_DEBUG, LM_RFID, "Let's programm CardId:", prog_cardId);
+    log(LL_INFO, LM_RFID, "Let's programm MembId:", prog_membId);
+    log(LL_INFO, LM_RFID, "Let's programm CardId:", prog_cardId);
 
     //if(check_card_present()) {
-        log(LL_DEBUG, LM_RFID, "Card present. Reset it to default.");
+        log(LL_INFO, LM_RFID, "Card present. Reset it to default.");
         assertRtn(!rfid_restore_card(), LL_ERROR, LM_RFID, "Rest to default failed");
-        log(LL_DEBUG, LM_RFID, "Card is restored. Start setting PICC");
+        log(LL_INFO, LM_RFID, "Card is restored. Start setting PICC");
         assertRtn(!rfid_set_PICC(), LL_ERROR, LM_RFID, "PICC set failed");
-        log(LL_DEBUG, LM_RFID, "PICC is set. Programm Tennis Data");
+        log(LL_INFO, LM_RFID, "PICC is set. Programm Tennis Data");
 
         uint8_t tennisCardID[8];
         uint8_t tennisCustomerID[8];
@@ -342,14 +342,14 @@ void rfid_program_card(uint32_t membId, uint32_t cardId) {
           membId /= 10;
         }
 
-        log(LL_DEBUG, LM_RFID, "About to write the following tennis data:");
-        log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Card-ID:    ", 8, tennisCardID);
-        log_hexdump(LL_DEBUG, LM_RFID, "Tennis-Customer-ID:", 8, tennisCustomerID);
+        log(LL_INFO, LM_RFID, "About to write the following tennis data:");
+        log_hexdump(LL_INFO, LM_RFID, "Tennis-Card-ID:    ", 8, tennisCardID);
+        log_hexdump(LL_INFO, LM_RFID, "Tennis-Customer-ID:", 8, tennisCustomerID);
 
         if(rfid_store_tennis_app(tennisCardID, tennisCustomerID))
-            log(LL_DEBUG, LM_RFID, "Success.");
+            log(LL_INFO, LM_RFID, "Success.");
         else
-            log(LL_DEBUG, LM_RFID, "Failed.");
+            log(LL_ERROR, LM_RFID, "Failed.");
     //} else
     //    log(LL_DEBUG, LM_RFID, "No card present.");
 }
@@ -364,8 +364,8 @@ void rfid_program_card_async(uint32_t membId, uint32_t cardId, void (*prog_done)
         prog_next = true;
     }
 
-    log(LL_DEBUG, LM_RFID, "Programm MembId:", prog_membId);
-    log(LL_DEBUG, LM_RFID, "Programm CardId:", prog_cardId);
+    log(LL_INFO, LM_RFID, "Programm MembId:", prog_membId);
+    log(LL_INFO, LM_RFID, "Programm CardId:", prog_cardId);
 }
 
 void rfid_restore_card_async(void (*restore_done)()) {

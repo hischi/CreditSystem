@@ -144,6 +144,7 @@ void time_serv_button_pressed(uint8_t button) {
 
         case BUTTON_SET:
             clock_adjust(new_datetime);
+            new_datetime = 1565968661;  //16.08.2019 17:17:41
             break;
 
         default:

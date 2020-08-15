@@ -155,6 +155,7 @@ bool dh_read_last_transaction() {
 bool dh_append_transaction() {
     log(LL_DEBUG, LM_DH, "dh_append_transaction");
 
+    log(LL_INFO, LM_DH, "Try to append a new transaction...");
     assertDo(!fh_fopen(1, "TRANSACT.DB"), LL_ERROR, LM_DH, "Can't open transaction list", return false;);
 
     sTransactionCS transaction_cs;
@@ -167,12 +168,14 @@ bool dh_append_transaction() {
     transaction_header.entry_count++;
     transaction_header.datetime_modified = clock_now().unixtime();
 
+    log(LL_INFO, LM_DH, "New transaction appended to SD-card.");
     return dh_write_transaction_header();
 }
 
 bool dh_write_last_transaction() {
     log(LL_DEBUG, LM_DH, "dh_write_last_transaction");
 
+    log(LL_INFO, LM_DH, "Try to write / update last transaction...");
     assertDo(!fh_fopen(1, "TRANSACT.DB"), LL_ERROR, LM_DH, "Can't open transaction list", return false;);
 
     sTransactionCS transaction_cs;
@@ -185,6 +188,7 @@ bool dh_write_last_transaction() {
     
     fh_fclose();
 
+    log(LL_INFO, LM_DH, "Last transaction was written / updated.");
     return true;
 }
 
@@ -219,6 +223,7 @@ uint32_t dh_calculate_discount(uint32_t memberID, uint32_t cost){
 
 bool dh_create_transaction(uint32_t memberID, uint8_t itemID, uint32_t cost, uint16_t discount) {
     log(LL_DEBUG, LM_DH, "dh_create_transaction");
+    log(LL_INFO, LM_DH, "A new transaction was requested.");
 
     // Create the transaction and append it to the list
     if(transaction.status <= DH_TA_APPROVED) {
@@ -247,12 +252,14 @@ bool dh_create_transaction(uint32_t memberID, uint8_t itemID, uint32_t cost, uin
     transaction.cost = cost;
     transaction.discount = discount;
     transaction.datetime_modified = clock_now().unixtime();
+    log(LL_INFO, LM_DH, "New transaction was created but is yet not stored");
 
     return dh_append_transaction();
 }
 
 bool dh_approve_transaction() {
     log(LL_DEBUG, LM_DH, "dh_approve_transaction");
+    log(LL_INFO, LM_DH, "Approve the transaction");
 
     assertDo(!dh_read_last_transaction(), LL_ERROR, LM_DH, "Can't read last transaction", return false;);
 
@@ -268,6 +275,7 @@ bool dh_approve_transaction() {
 
 bool dh_complete_transaction() {
     log(LL_DEBUG, LM_DH, "dh_complete_transaction");
+    log(LL_INFO, LM_DH, "Complete the last transaction...");
 
     assertDo(!dh_read_last_transaction(), LL_ERROR, LM_DH, "Can't read last transaction", return false;);
 
@@ -283,6 +291,7 @@ bool dh_complete_transaction() {
 
 bool dh_cancle_transaction() {
     log(LL_DEBUG, LM_DH, "dh_cancle_transaction");
+    log(LL_INFO, LM_DH, "Cancle the last transaction");
 
     assertDo(!dh_read_last_transaction(), LL_ERROR, LM_DH, "Can't read last transaction", return false;);
 
@@ -298,6 +307,7 @@ bool dh_cancle_transaction() {
 
 bool dh_timeout_transaction() {
     log(LL_DEBUG, LM_DH, "dh_timeout_transaction");
+    log(LL_INFO, LM_DH, "Cancle the last transaction because of timeout");
 
     assertDo(!dh_read_last_transaction(), LL_ERROR, LM_DH, "Can't read last transaction", return false;);
 
@@ -320,16 +330,36 @@ sMember* dh_get_member_from_idx(uint32_t idx) {
     return &members[idx];    
 }
 
+char log_dir[16];
+char log_parent[] = "logs";
 
+
+bool dh_prepare_log() {
+    log(LL_DEBUG, LM_DH, "dh_prepare_log");
+
+    char log_path[64];
+    DateTime time = clock_now();
+    sprintf(log_dir, "%02hhu%02hhu%02hhu%02hhu", time.month(), time.day(), time.hour(), time.minute());
+    sprintf(log_path, "%s/%s", log_parent, log_dir);
+    log(LL_INFO, LM_DH, "Logs will be stored here: ", log_path);
+
+    assertDo(!fh_mkdir(1, log_parent, log_dir), LL_ERROR, LM_DH, "Can't make or open directoy", return false;);
+    
+    return true;
+}
 
 bool dh_store_log(char *log_buffer, uint32_t size) {
     log(LL_DEBUG, LM_DH, "dh_store_log");
 
-    char log_name[13];
-    sprintf(log_name, "LOG%3d.txt", log_idx);
-    log(LL_DEBUG, LM_DH, "Generate new log File: ", log_name);
+    char log_name[16];
+    char log_path[64];
+    DateTime time;
 
-    assertDo(!fh_fopen(1, log_name), LL_ERROR, LM_DH, "Can't open new or existing log", return false;);
+    sprintf(log_name, "LOG%03d.txt", log_idx);
+    sprintf(log_path, "%s/%s/%s", log_parent, log_dir, log_name);
+    log(LL_INFO, LM_DH, "Generate new log File: ", log_path);
+
+    assertDo(!fh_fopen(1, log_path), LL_ERROR, LM_DH, "Can't open new or existing log", return false;);
 
     // Always start with an empty file
     fh_clear();

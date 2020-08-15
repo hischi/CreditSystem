@@ -61,11 +61,20 @@ void write(uint8_t data, bool mode) {
     Serial1.write9bit(data_mode);
 }
 
-bool read(uint8_t *data) {
+bool read(uint8_t *data, uint8_t cmd, uint8_t subcmd) {
     log(LL_DEBUG, LM_MDB, "read");
+    char warning[64];
+    uint8_t i = 0;
+
     while(Serial1.available() < 1) {
-        log(LL_WARNING, LM_MDB, "Read waits for bytes");
+        
         delayMicroseconds(100);
+        i++;
+        if(i > 20) {
+            sprintf(warning, "Read waited 2 ms for bytes for cmd 0x%02X / sub-cmd 0x%02X", cmd, subcmd);
+            log(LL_WARNING, LM_MDB, warning);
+            i = 0;
+        }
     }
 
     uint16_t data_mode = Serial1.read();
@@ -118,7 +127,7 @@ bool mdb_send_data(uint8_t len, const uint8_t data[]) {
     while(!nack_timer.IsOver()) {
         if(check_mdb_state() > 0) {
             uint8_t response;
-            bool mode = read(&response);
+            bool mode = read(&response, 255, 0);
             assertDo(mode, LL_ERROR, LM_MDB, "Expected ACK, NACK, RET but got mode bit set", return false;);        
 
             if(response == 0x00)        // ACK --> we are done here
@@ -152,7 +161,7 @@ uint8_t mdb_read(uint8_t *cmd, uint8_t data[]) {
     if(check_mdb_state() > 0) {
         
         // Read first byte and check what to expect next
-        bool mode = read(cmd);
+        bool mode = read(cmd, 0, 0);
         chk = *cmd;
 
         if(mode) {
@@ -162,7 +171,7 @@ uint8_t mdb_read(uint8_t *cmd, uint8_t data[]) {
 
                 uint8_t rem_len = cldev_cmd_len(*cmd);      // How many to be read based on CMD
                 for(uint8_t i = 0; i < rem_len; i++) {      // Read rem_len bytes   
-                    mode = read(&data[len]);
+                    mode = read(&data[len], *cmd, 255);
                     chk += data[len];
                     len++;
                     
@@ -171,7 +180,7 @@ uint8_t mdb_read(uint8_t *cmd, uint8_t data[]) {
 
                 rem_len = cldev_scmd_len(*cmd, data[0]);    // How many to be read based on SCMD
                 for(uint8_t i = 0; i < rem_len; i++) {      // Read rem_len bytes
-                    mode = read(&data[len]);
+                    mode = read(&data[len], *cmd, data[0]);
                     chk += data[len];
                     len++;
                     
@@ -179,7 +188,7 @@ uint8_t mdb_read(uint8_t *cmd, uint8_t data[]) {
                 }
 
                 uint8_t chk_read = 0;
-                mode = read(&chk_read);
+                mode = read(&chk_read, *cmd, 254);
                 assertDo(mode, LL_ERROR, LM_MDB, "Invalid Block from VCM. Mode-Bit was set unexpectedly in CHK", return 0;);
                 assertDo(chk != chk_read, LL_ERROR, LM_MDB, "Calculated CHK does not match CHK-Byte", return 0;);
 

@@ -10,6 +10,7 @@ char logBuffer[LOG_BUFFER_SIZE];
 uint32_t logLength;
 bool logStoreTrigger;
 #define LOG_STORE_TRIGGER_DIP 0x08
+bool logPrepared;
 
 void LogWrite(const char *str) {
     Serial.write(str);
@@ -37,9 +38,17 @@ void err_log_reset() {
 }
 
 void err_log_can_store() {
-    if((logLength == LOG_STORE_THRESHOLD) || (logStoreTrigger != peri_check_dip(LOG_STORE_TRIGGER_DIP))) {
-        dh_store_log(logBuffer, logLength);
-        err_log_reset();
+    if((logLength >= LOG_STORE_THRESHOLD) || (logStoreTrigger != peri_check_dip(LOG_STORE_TRIGGER_DIP))) {
+
+        if(!logPrepared) {
+            log(LL_INFO, LM_MAIN, "Prepare the log-dir for first log save");
+            logPrepared = dh_prepare_log();
+        }
+
+        if(logPrepared) {
+            dh_store_log(logBuffer, logLength);
+            err_log_reset();
+        }
     }
 }
 
@@ -130,6 +139,8 @@ void err_init() {
 
     setLogLevel(LL_DEBUG);
     assertCount = 0;    
+
+    logPrepared = false;
 }
 
 void log_header(eLogLevel level, const char module[]) {
