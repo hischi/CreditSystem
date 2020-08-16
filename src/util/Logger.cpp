@@ -1,12 +1,6 @@
 #include "Logger.h"
 #include "../clock/clock.h"
 
-Logger singleton;
-
-Logger* Logger::Get() {
-    return &singleton;
-}
-
 void Logger::Log(const LoggerInterface* intf, const char* msg, LogLevel level) {
     if(TestLogLevel(level)){
         LogHeader(intf, level);
