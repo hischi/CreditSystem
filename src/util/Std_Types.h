@@ -31,7 +31,7 @@ public:
         return (error == E_OK);
     }
 
-    T& operator() () const {
+    T& operator() () {
         return value;
     }
 
@@ -79,3 +79,5 @@ public:
 private:
     StdErrorCode error;
 };
+
+using StdNoReturn = StdReturn<void>;
