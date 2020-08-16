@@ -46,19 +46,14 @@ private:
         switch(logLevel) {
         case LL_FATAL:
             return "[FATAL] ";
-            break;
         case LL_ERROR:
             return "[ERROR] ";
-            break;
         case LL_WARNING:
             return "[WARN]  ";
-            break;
         case LL_INFO:
             return "[INFO]  ";
-            break;
         case LL_DEBUG:
             return "[DEBUG] ";
-            break;
         default:
             return "[UNKWN] ";
         }
