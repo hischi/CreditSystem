@@ -5,7 +5,7 @@
 #define _RTCLIB_H_
 
 #include <Arduino.h>
-#include "../util/time_format.h"
+#include <TimeLib.h>
 
 #define PCF8523_ADDRESS       0x68
 #define PCF8523_CLKOUTCONTROL 0x0F
@@ -17,9 +17,9 @@ enum Pcf8523SqwPinMode { PCF8523_OFF = 7, PCF8523_SquareWave1HZ = 6, PCF8523_Squ
 class RTC_PCF8523 {
 public:
     boolean begin(void);
-    void adjust(const DateTime& dt);
+    void adjust(const time_t& dt);
     boolean initialized(void);
-    static DateTime now();
+    static time_t now();
 
     Pcf8523SqwPinMode readSqwPinMode();
     void writeSqwPinMode(Pcf8523SqwPinMode mode);

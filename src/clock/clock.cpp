@@ -1,16 +1,7 @@
 #include "clock.h"
-#include "RTClib.h"
-#include "../util/error.h"
 
-bool initialised = false;
-bool referenced;
-DateTime last_reference;
-uint32_t  last_local;
-
-RTC_PCF8523 rtc_clock;
-
-void clock_reference() {
-    DateTime new_reference = rtc_clock.now();
+StdNoReturn Sync() {
+    TimePoint new_reference = rtcClock.now();
     
     if(new_reference.day() > 31 || new_reference.month() > 12 || new_reference.hour() > 24) {
         log(LL_ERROR, LM_CLOCK, "RTClock delivered invalid timestamp");
@@ -27,21 +18,23 @@ void clock_reference() {
     referenced = true;
 }
 
-void clock_init() {
-    initialised = false;
+StdNoReturn Clock::Init() {
+    ready = false;
 
-    log(LL_DEBUG, LM_CLOCK, "clock_init");
+    inSync = false;
+    lastSyncCounter = 0;
+    lastSyncPoint = TimePoint();
 
-    referenced = false;
-    last_local = 0;
-    last_reference = DateTime();
+    rtcClock.begin();
+    if(!rtcClock.initialized()) {
+        Log("RTC Clock lost its power, unknown absolute time", Logger::LL_WARNING);
+    }
 
-    rtc_clock.begin();
-
-    assertCnt(!rtc_clock.initialized(), LL_ERROR, LM_CLOCK, "RTC Clock lost its power, unknown absolute time");
-
-    clock_reference();
-    initialised = true;
+    StdNoReturn ret = Sync();
+    if(!ret.IsError()) {
+        ready = true;
+    }
+    return ret;
 }
 
 bool clock_was_init() {

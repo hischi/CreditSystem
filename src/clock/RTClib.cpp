@@ -30,7 +30,8 @@ boolean RTC_PCF8523::initialized(void) {
   return ((ss & 0xE0) != 0xE0);
 }
 
-void RTC_PCF8523::adjust(const DateTime& dt) {
+void RTC_PCF8523::adjust(const time_t& dt) {
+  struct tm localTime = std::localtime(&dt);
   Wire.beginTransmission(PCF8523_ADDRESS);
   Wire.write((byte)3); // start at location 3
   Wire.write(bin2bcd(dt.second()));
