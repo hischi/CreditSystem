@@ -151,9 +151,9 @@ void log_header(eLogLevel level, const char module[]) {
         DateTime time = clock_now();
 
         // Format time string and write it
-        sprintf(str, "%02hhu:%02hhu:%02hhu,%03hd ", time.hour(), time.minute(), time.second(), (int) time.millis());
+        sprintf(str, "%02hhu.%02hhu.%02hu %02hhu:%02hhu:%02hhu,%03hd ", time.day(), time.month(), time.year(), time.hour(), time.minute(), time.second(), (int) time.millis());
     } else {
-        sprintf(str, "%12u ", (unsigned int) millis());
+        sprintf(str, "%21u ", (unsigned int) millis());
     }
     LogWrite(str);
 
