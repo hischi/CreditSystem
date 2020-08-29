@@ -5,6 +5,7 @@
 void rfid_init(bool autoLog);
 
 uint32_t rfid_member_present();
+void rfid_member_reset();
 
 void rfid_low_power_mode();
 

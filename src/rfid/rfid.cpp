@@ -319,6 +319,11 @@ uint32_t rfid_member_present(){
     return member_present;
 }
 
+void rfid_member_reset(){
+    log(LL_DEBUG, LM_RFID, "rfid_member_reset");
+    member_present = 0;
+}
+
 void rfid_program_card(uint32_t membId, uint32_t cardId) {
     log(LL_DEBUG, LM_RFID, "rfid_program_card");
 

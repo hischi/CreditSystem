@@ -309,6 +309,7 @@ void do_cmd_vend_cancel() {
 
     log(LL_INFO, LM_CLDEV, "Vend was cancled by customer");
     dh_cancle_transaction();
+    rfid_member_reset();
 
     uint8_t answer[32];
     uint8_t len = 0;
@@ -322,9 +323,9 @@ void do_cmd_vend_success(const uint8_t data[]) {
     uint16_t item = (((uint16_t) data[0]) << 8) + data[1];
     mdb_send_ack();
 
-    log(LL_INFO, LM_CLDEV, "Vend was a success. Customer got item");
+    log(LL_INFO, LM_CLDEV, "Vend was a success. Customer got item ", (uint32_t) item);
     dh_complete_transaction();
-    
+    rfid_member_reset();
 }
 
 void do_cmd_vend_failure() {
@@ -332,6 +333,7 @@ void do_cmd_vend_failure() {
 
     log(LL_INFO, LM_CLDEV, "Vend failed. Customer did not get any item");
     dh_cancle_transaction();
+    rfid_member_reset();
 
     mdb_send_ack();
 }
@@ -344,6 +346,7 @@ void do_cmd_vend_complete() {
     len = answer_EndSession(answer);
     mdb_send_data(len, answer);
     log(LL_INFO, LM_CLDEV, "Vend is now completed");
+    rfid_member_reset();
 }
 
 void do_cmd_vend_cashsale() {
@@ -381,11 +384,11 @@ void do_cmd_expansion_id(const uint8_t data[]) {
 
     char serial_number[13];
     memcpy(serial_number, data+3, 12);
-    serial_number[13] = 0;
+    serial_number[12] = 0;
 
     char model_number[13];
     memcpy(model_number, data+15, 12);
-    model_number[13] = 0;
+    model_number[12] = 0;
 
     uint16_t sw_version = data[27];
     sw_version = (sw_version << 8) + data[28];
