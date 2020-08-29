@@ -72,7 +72,7 @@ bool read(uint8_t *data, uint8_t cmd, uint8_t subcmd) {
         i++;
         if(i > 20) {
             sprintf(warning, "Read waited 2 ms for bytes for cmd 0x%02X / sub-cmd 0x%02X", cmd, subcmd);
-            log(LL_WARNING, LM_MDB, warning);
+            log(LL_DEBUG, LM_MDB, warning);
             i = 0;
         }
     }
